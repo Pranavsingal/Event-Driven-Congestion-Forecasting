@@ -1,0 +1,688 @@
+/* ==================================================
+   SMART TRAFFIC MANAGEMENT SYSTEM
+   PROFESSIONAL GOVERNMENT DASHBOARD THEME
+================================================== */
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+
+  /* =========================
+     TYPOGRAPHY
+  ========================= */
+
+  --font-primary: 'Public Sans', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* =========================
+     COLOR SYSTEM
+  ========================= */
+
+  --bg-primary: #f4f7fa;
+  --bg-secondary: #eef2f6;
+  --bg-tertiary: #e4eaf1;
+
+  --card-bg: #ffffff;
+  --card-hover: #fafbfc;
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+
+  --border-color: #d7dee8;
+
+  /* Government Blue */
+  --primary: #0f4c81;
+  --primary-light: #2f6ea5;
+  --primary-dark: #08365c;
+
+  /* Traffic Status Colors */
+  --success: #2e7d32;
+  --warning: #ed6c02;
+  --danger: #c62828;
+  --info: #1565c0;
+
+  /* Analytics Colors */
+  --traffic-low: #43a047;
+  --traffic-medium: #fb8c00;
+  --traffic-high: #e53935;
+  --traffic-critical: #b71c1c;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.10);
+
+  /* Layout */
+  --sidebar-width: 280px;
+  --header-height: 72px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+}
+
+/* ==================================================
+   RESET
+================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ==================================================
+   TYPOGRAPHY
+================================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ==================================================
+   LAYOUT
+================================================== */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ==================================================
+   SIDEBAR
+================================================== */
+
+.sidebar {
+
+  width: var(--sidebar-width);
+
+  background: var(--primary);
+
+  color: white;
+
+  min-height: 100vh;
+
+  position: fixed;
+  left: 0;
+  top: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar-logo {
+
+  padding: 24px;
+
+  font-size: 1.25rem;
+  font-weight: 700;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-menu {
+
+  padding: 20px 12px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-item {
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 14px 16px;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  transition: 0.25s ease;
+}
+
+.sidebar-item:hover {
+
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-item.active {
+
+  background: white;
+
+  color: var(--primary);
+
+  font-weight: 600;
+}
+
+/* ==================================================
+   MAIN CONTENT
+================================================== */
+
+.main-content {
+
+  margin-left: var(--sidebar-width);
+
+  width: calc(100% - var(--sidebar-width));
+
+  min-height: 100vh;
+}
+
+/* ==================================================
+   HEADER
+================================================== */
+
+.header {
+
+  height: var(--header-height);
+
+  background: white;
+
+  border-bottom: 1px solid var(--border-color);
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  padding: 0 24px;
+
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-title {
+
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.header-actions {
+
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ==================================================
+   PAGE CONTAINER
+================================================== */
+
+.page-container {
+  padding: 24px;
+}
+
+/* ==================================================
+   CARD SYSTEM
+================================================== */
+
+.card {
+
+  background: var(--card-bg);
+
+  border: 1px solid var(--border-color);
+
+  border-radius: var(--radius-md);
+
+  box-shadow: var(--shadow-sm);
+
+  padding: 20px;
+
+  transition: 0.25s ease;
+}
+
+.card:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow: var(--shadow-md);
+}
+
+/* Compatibility Aliases for components using .glass */
+.glass {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: 0.25s ease;
+}
+
+.glass:hover {
+  border-color: var(--primary-light);
+}
+
+.glass-interactive {
+  cursor: pointer;
+}
+
+.glass-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.card-title {
+
+  font-size: 1rem;
+
+  font-weight: 600;
+
+  margin-bottom: 12px;
+}
+
+/* ==================================================
+   GRID
+================================================== */
+
+.grid-4 {
+
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 20px;
+}
+
+.grid-3 {
+
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 20px;
+}
+
+.grid-2 {
+
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 20px;
+}
+
+/* ==================================================
+   METRIC CARDS
+================================================== */
+
+.metric-card {
+
+  background: white;
+
+  border-radius: 14px;
+
+  padding: 20px;
+
+  border-left: 5px solid var(--primary);
+
+  box-shadow: var(--shadow-sm);
+}
+
+.metric-card.success {
+  border-left-color: var(--success);
+}
+
+.metric-card.warning {
+  border-left-color: var(--warning);
+}
+
+.metric-card.danger {
+  border-left-color: var(--danger);
+}
+
+.metric-label {
+
+  font-size: 14px;
+
+  color: var(--text-secondary);
+
+  margin-bottom: 10px;
+}
+
+.metric-value {
+
+  font-size: 2rem;
+
+  font-weight: 700;
+}
+
+.metric-change {
+
+  margin-top: 8px;
+
+  font-size: 14px;
+}
+
+/* ==================================================
+   BUTTONS
+================================================== */
+
+.btn {
+
+  border: none;
+
+  cursor: pointer;
+
+  border-radius: 10px;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  padding: 12px 18px;
+
+  transition: 0.2s;
+}
+
+.btn-primary {
+
+  background: var(--primary);
+
+  color: white;
+}
+
+.btn-primary:hover {
+
+  background: var(--primary-light);
+}
+
+.btn-secondary {
+
+  background: white;
+
+  border: 1px solid var(--border-color);
+
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+
+  background: var(--bg-secondary);
+}
+
+/* ==================================================
+   INPUTS
+================================================== */
+
+input,
+select,
+textarea {
+
+  width: 100%;
+
+  padding: 12px 14px;
+
+  border-radius: 10px;
+
+  border: 1px solid var(--border-color);
+
+  background: white;
+
+  font-family: inherit;
+
+  transition: 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+
+  outline: none;
+
+  border-color: var(--primary);
+
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.15);
+}
+
+/* ==================================================
+   STATUS BADGES
+================================================== */
+
+.badge {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 6px 12px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+}
+
+.badge-success {
+
+  background: #e8f5e9;
+
+  color: var(--success);
+}
+
+.badge-warning {
+
+  background: #fff3e0;
+
+  color: var(--warning);
+}
+
+.badge-danger {
+
+  background: #ffebee;
+
+  color: var(--danger);
+}
+
+/* ==================================================
+   TABLE
+================================================== */
+
+.table-container {
+
+  overflow-x: auto;
+}
+
+table {
+
+  width: 100%;
+
+  border-collapse: collapse;
+}
+
+thead {
+
+  background: #f8fafc;
+}
+
+th {
+
+  text-align: left;
+
+  padding: 14px;
+
+  color: var(--text-secondary);
+
+  font-size: 13px;
+}
+
+td {
+
+  padding: 14px;
+
+  border-top: 1px solid var(--border-color);
+}
+
+/* ==================================================
+   ALERT PANELS
+================================================== */
+
+.alert {
+
+  padding: 16px;
+
+  border-radius: 12px;
+
+  margin-bottom: 12px;
+}
+
+.alert-success {
+
+  background: #e8f5e9;
+
+  color: var(--success);
+}
+
+.alert-warning {
+
+  background: #fff3e0;
+
+  color: var(--warning);
+}
+
+.alert-danger {
+
+  background: #ffebee;
+
+  color: var(--danger);
+}
+
+/* ==================================================
+   SCROLLBAR
+================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b0bec5;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #90a4ae;
+}
+
+/* ==================================================
+   RESPONSIVE
+================================================== */
+
+@media (max-width: 1200px) {
+
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .grid-4,
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .page-container {
+    padding: 16px;
+  }
+}
+
+/* ==================================================
+   ANIMATIONS & LIVE PULSE
+================================================== */
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 4px rgba(46, 125, 50, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(46, 125, 50, 0.7); }
+  100% { box-shadow: 0 0 4px rgba(46, 125, 50, 0.4); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--success);
+  border-radius: 50%;
+  position: relative;
+  display: inline-block;
+}
+
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: inherit;
+  animation: pulseGlow 1.8s infinite;
+  opacity: 0.6;
+}
