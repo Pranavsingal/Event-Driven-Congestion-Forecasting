@@ -35,10 +35,10 @@ export default function MetricCards({ stats }) {
     },
     {
       title: 'AI Forecast Precision',
-      value: `${predictionAccuracy}%`,
+      value: typeof predictionAccuracy === 'number' ? `${predictionAccuracy}%` : predictionAccuracy,
       icon: <Zap size={22} />,
-      color: 'var(--clr-indigo)',
-      desc: 'Confidence in current prediction',
+      color: typeof predictionAccuracy === 'number' ? 'var(--clr-indigo)' : 'var(--text-muted)',
+      desc: typeof predictionAccuracy === 'number' ? 'Confidence in current prediction' : 'Model training required',
     }
   ];
 

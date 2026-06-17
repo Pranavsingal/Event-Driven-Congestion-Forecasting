@@ -155,7 +155,7 @@ export default function Dashboard() {
     // 5. Compute global KPI stats
     const avgSpeedVal = Math.round(baseSectors.reduce((acc, curr) => acc + curr.speed, 0) / baseSectors.length);
     const avgCongestionVal = Math.round(baseSectors.reduce((acc, curr) => acc + curr.congestion, 0) / baseSectors.length);
-    const precisionVal = filters.mode === 'predictive' ? 96 : 82;
+    const precisionVal = 'N/A';
 
     setStats({
       congestionIndex: avgCongestionVal,
