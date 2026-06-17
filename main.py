@@ -9,6 +9,9 @@ Orchestrates the Day 1 pipeline:
 
 import os
 from src.data.load_data import load_dataset, inspect_data
+from src.data.clean_data import clean_data
+from src.data.feature_engineering import engineer_features
+from src.eda.charts import generate_charts
 
 def main():
     print("Starting Event-Driven Congestion Forecasting Pipeline...\n")
@@ -23,17 +26,17 @@ def main():
     df = load_dataset(raw_data_path)
     inspect_data(df)
     
-    # Step 2: Clean Data (To be implemented)
-    print("\n--- Step 2: Clean Data (Skipped for now) ---")
-    # df = clean_data(df)
+    # Step 2: Clean Data
+    print("\n--- Step 2: Clean Data ---")
+    df = clean_data(df)
     
-    # Step 3: Feature Engineering (To be implemented)
-    print("\n--- Step 3: Feature Engineering (Skipped for now) ---")
-    # df = engineer_features(df)
+    # Step 3: Feature Engineering
+    print("\n--- Step 3: Feature Engineering ---")
+    df = engineer_features(df)
     
-    # Step 4: EDA Charts (To be implemented)
-    print("\n--- Step 4: Generate EDA Charts (Skipped for now) ---")
-    # generate_charts(df)
+    # Step 4: EDA Charts
+    print("\n--- Step 4: Generate EDA Charts ---")
+    generate_charts(df)
     
     print("\nPipeline execution finished successfully.")
 
