@@ -4,13 +4,13 @@
   --font-heading: 'Outfit', var(--font-sans);
   --font-mono: 'Fira Code', monospace;
 
-  /* Color Palette - HSL Cyber / Slate Theme */
-  --bg-primary: hsl(222, 47%, 10%);
-  --bg-secondary: hsl(223, 47%, 5%);
-  --bg-card: rgba(17, 24, 39, 0.55);
-  --bg-card-hover: rgba(30, 41, 59, 0.7);
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-color-glow: rgba(99, 102, 241, 0.4);
+  /* Color Palette - HSL Solid Theme */
+  --bg-primary: hsl(220, 24%, 8%);
+  --bg-secondary: hsl(220, 24%, 5%);
+  --bg-card: hsl(220, 20%, 14%);
+  --bg-card-hover: hsl(220, 20%, 18%);
+  --border-color: hsl(220, 15%, 20%);
+  --border-color-glow: hsl(250, 95%, 65%);
   
   --text-primary: hsl(210, 40%, 98%);
   --text-secondary: hsl(215, 20%, 65%);
@@ -24,10 +24,9 @@
   --clr-indigo: hsl(250, 95%, 65%);
   --clr-pink: hsl(320, 85%, 60%);
 
-  /* Shadow & Blur System */
+  /* Shadow & Glow System */
   --glow-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
-  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --backdrop-blur: blur(12px);
+  --card-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
 
   /* Layout Constants */
   --sidebar-width: 280px;
@@ -50,10 +49,6 @@
 
 body {
   background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
-  background-attachment: fixed;
   overflow-x: hidden;
   color: var(--text-primary);
   min-height: 100vh;
@@ -66,11 +61,9 @@ body {
   flex-direction: column;
 }
 
-/* Glassmorphism Classes */
+/* Solid Panel Classes */
 .glass {
   background: var(--bg-card);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
@@ -79,7 +72,7 @@ body {
 
 .glass:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: hsl(220, 15%, 26%);
 }
 
 .glass-interactive {
