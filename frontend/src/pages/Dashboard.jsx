@@ -169,6 +169,12 @@ export default function Dashboard() {
       .then(res => {
         if (res && res.success) {
           setPredictionData(res.prediction);
+          // Update the global forecast precision KPI with the active prediction confidence
+          const confidenceNum = parseFloat(res.prediction.severityConfidence);
+          setStats(prev => ({
+            ...prev,
+            predictionAccuracy: isNaN(confidenceNum) ? res.prediction.severityConfidence : confidenceNum
+          }));
         }
       });
 
