@@ -1,0 +1,41 @@
+MODEL EVALUATION REPORT
+=======================
+
+1. SEVERITY CLASSIFIER (XGBoost)
+----------------------------------------
+Classification Report (Precision/Recall/F1):
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00      1006
+           1       1.00      1.00      1.00       628
+           2       0.00      0.00      0.00         1
+
+    accuracy                           1.00      1635
+   macro avg       0.67      0.67      0.67      1635
+weighted avg       1.00      1.00      1.00      1635
+
+Confusion Matrix:
+[[1006    0    0]
+ [   2  626    0]
+ [   0    1    0]]
+
+========================================
+
+2. ROAD CLOSURE CLASSIFIER (RandomForest)
+----------------------------------------
+Classification Report (Precision/Recall/F1):
+              precision    recall  f1-score   support
+
+           0       0.94      0.93      0.94      1500
+           1       0.33      0.40      0.36       135
+
+    accuracy                           0.88      1635
+   macro avg       0.64      0.66      0.65      1635
+weighted avg       0.89      0.88      0.89      1635
+
+Confusion Matrix:
+[[1390  110]
+ [  81   54]]
+
+========================================
+
