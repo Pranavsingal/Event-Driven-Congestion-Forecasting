@@ -29,6 +29,14 @@ export default function History() {
         </div>
       </div>
 
+      {/* Offline Disclaimer Banner */}
+      <div style={{ padding: '14px 20px', background: 'rgba(245, 158, 11, 0.08)', borderLeft: '4px solid var(--clr-yellow)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--clr-yellow)' }}></span>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '140%' }}>
+          <strong>Offline Cache Archive:</strong> Showing sample historical logs. Connect a live MongoDB instance to retrieve dynamic databases and logs.
+        </span>
+      </div>
+
       {/* Highlights metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
         <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
