@@ -5,16 +5,16 @@ export default function PredictionDisplayCards() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
       {/* Panel Title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px' }}>
-        <Cpu size={16} color="var(--clr-yellow)" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <Cpu size={16} color="var(--warning)" />
         <span style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
           Active AI Inference Predictions
         </span>
       </div>
 
       {/* Warning Alert Panel about Untrained Models */}
-      <div className="glass" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center', borderLeft: '4px solid var(--clr-yellow)' }}>
-        <AlertTriangle size={36} color="var(--clr-yellow)" style={{ flexShrink: 0 }} />
+      <div className="glass" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center', borderLeft: '4px solid var(--warning)', background: 'var(--card-bg)' }}>
+        <AlertTriangle size={36} color="var(--warning)" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>ML Inference Offline (Untrained Models)</h4>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '145%' }}>

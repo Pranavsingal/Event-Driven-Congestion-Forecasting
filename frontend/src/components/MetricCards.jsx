@@ -4,40 +4,60 @@ import { Activity, AlertTriangle, Navigation, Zap } from 'lucide-react';
 export default function MetricCards({ stats }) {
   const { congestionIndex, activeIncidents, avgSpeed, predictionAccuracy } = stats;
 
-  // Helper to determine status color for congestion
-  const getCongestionColor = (val) => {
-    if (val < 35) return 'var(--clr-green)';
-    if (val < 65) return 'var(--clr-yellow)';
-    return 'var(--clr-red)';
+  // Helper to determine status color and css class for left border accent
+  const getCongestionDetails = (val) => {
+    if (val < 35) return { color: 'var(--success)', statusClass: 'success', desc: 'Optimal traffic conditions' };
+    if (val < 65) return { color: 'var(--warning)', statusClass: 'warning', desc: 'Moderate flow constraints' };
+    return { color: 'var(--danger)', statusClass: 'danger', desc: 'Critical delays detected' };
   };
+
+  const getIncidentsDetails = (count) => {
+    if (count > 3) return { color: 'var(--danger)', statusClass: 'danger', desc: `${count} blockages requiring dispatch` };
+    if (count > 0) return { color: 'var(--warning)', statusClass: 'warning', desc: `${count} blockages requiring dispatch` };
+    return { color: 'var(--success)', statusClass: 'success', desc: 'No major road obstructions' };
+  };
+
+  const getSpeedDetails = (speed) => {
+    if (speed < 20) return { color: 'var(--danger)', statusClass: 'danger', desc: 'Heavy delays' };
+    if (speed < 40) return { color: 'var(--warning)', statusClass: 'warning', desc: 'Slowing segment velocities' };
+    return { color: 'var(--success)', statusClass: 'success', desc: 'Flow relative to 55 mph baseline' };
+  };
+
+  const cDet = getCongestionDetails(congestionIndex);
+  const iDet = getIncidentsDetails(activeIncidents);
+  const sDet = getSpeedDetails(avgSpeed);
 
   const getMetricCardsData = () => [
     {
       title: 'Congestion Index',
       value: `${congestionIndex}%`,
-      icon: <Activity size={22} />,
-      color: getCongestionColor(congestionIndex),
-      desc: congestionIndex > 65 ? 'Critical delays detected' : congestionIndex > 35 ? 'Moderate flow constraints' : 'Optimal traffic conditions',
+      icon: <Activity size={20} />,
+      color: cDet.color,
+      statusClass: cDet.statusClass,
+      desc: cDet.desc,
     },
     {
       title: 'Active Incidents',
       value: activeIncidents,
-      icon: <AlertTriangle size={22} />,
-      color: activeIncidents > 3 ? 'var(--clr-red)' : activeIncidents > 0 ? 'var(--clr-yellow)' : 'var(--clr-green)',
-      desc: activeIncidents > 0 ? `${activeIncidents} blockages requiring dispatch` : 'No major road obstructions',
+      icon: <AlertTriangle size={20} />,
+      color: iDet.color,
+      statusClass: iDet.statusClass,
+      desc: iDet.desc,
     },
     {
       title: 'Average Network Speed',
       value: `${avgSpeed} mph`,
-      icon: <Navigation size={22} />,
-      color: avgSpeed < 20 ? 'var(--clr-red)' : avgSpeed < 40 ? 'var(--clr-yellow)' : 'var(--clr-green)',
-      desc: `Flow relative to 55 mph baseline`,
+      icon: <Navigation size={20} />,
+      color: sDet.color,
+      statusClass: sDet.statusClass,
+      desc: sDet.desc,
     },
     {
       title: 'AI Forecast Precision',
       value: typeof predictionAccuracy === 'number' ? `${predictionAccuracy}%` : predictionAccuracy,
-      icon: <Zap size={22} />,
-      color: typeof predictionAccuracy === 'number' ? 'var(--clr-indigo)' : 'var(--text-muted)',
+      icon: <Zap size={20} />,
+      color: 'var(--primary)',
+      statusClass: '', // default primary border
       desc: typeof predictionAccuracy === 'number' ? 'Confidence in current prediction' : 'Model training required',
     }
   ];
@@ -47,42 +67,29 @@ export default function MetricCards({ stats }) {
       {getMetricCardsData().map((card, idx) => (
         <div 
           key={idx} 
-          className="glass glass-interactive animate-fade-in" 
+          className={`metric-card glass-interactive animate-fade-in ${card.statusClass}`} 
           style={{ 
-            padding: '20px', 
             display: 'flex', 
             flexDirection: 'column', 
             gap: '12px',
-            position: 'relative',
-            overflow: 'hidden',
-            animationDelay: `${idx * 0.05}s`
+            animationDelay: `${idx * 0.04}s`,
+            background: 'var(--card-bg)'
           }}
         >
-          {/* Subtle colored accent glow line on top of each card */}
-          <div style={{ 
-            position: 'absolute', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            height: '3px', 
-            background: card.color,
-            boxShadow: `0 2px 8px ${card.color}` 
-          }} />
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>{card.title}</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>{card.title}</span>
             <div style={{ color: card.color }}>
               {card.icon}
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <h3 style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '28px', fontWeight: '800', fontFamily: 'var(--font-primary)', color: 'var(--text-primary)' }}>
               {card.value}
             </h3>
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
             <span style={{ 
               width: '6px', 
               height: '6px', 

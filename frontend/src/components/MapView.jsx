@@ -1,29 +1,26 @@
 import React, { useState } from 'react';
-import { MapPin, Info, ArrowUpRight, Compass } from 'lucide-react';
+import { Compass, ArrowUpRight } from 'lucide-react';
 
 export default function MapView({ sectors, incidents }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
-  // Map sector ID to color styles
+  // Map sector ID to color styles matching traffic standards
   const getSectorStyles = (congestion) => {
     if (congestion < 35) {
       return {
-        fill: 'rgba(16, 185, 129, 0.15)',
-        stroke: 'rgba(16, 185, 129, 0.7)',
-        glow: 'rgba(16, 185, 129, 0.2)'
+        fill: 'rgba(46, 125, 50, 0.15)',
+        stroke: 'var(--success)'
       };
     } else if (congestion < 65) {
       return {
-        fill: 'rgba(245, 158, 11, 0.15)',
-        stroke: 'rgba(245, 158, 11, 0.7)',
-        glow: 'rgba(245, 158, 11, 0.2)'
+        fill: 'rgba(237, 108, 2, 0.15)',
+        stroke: 'var(--warning)'
       };
     } else {
       return {
-        fill: 'rgba(239, 68, 68, 0.25)',
-        stroke: 'rgba(239, 68, 68, 0.85)',
-        glow: 'rgba(239, 68, 68, 0.35)'
+        fill: 'rgba(198, 40, 40, 0.25)',
+        stroke: 'var(--danger)'
       };
     }
   };
@@ -37,47 +34,36 @@ export default function MapView({ sectors, incidents }) {
   };
 
   return (
-    <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
+    <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', height: '100%', background: 'var(--card-bg)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Compass size={18} color="var(--clr-indigo)" />
-          <h2 style={{ fontSize: '18px', margin: 0 }}>Live Congestion Overlay Map</h2>
+          <Compass size={18} color="var(--primary)" />
+          <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--text-primary)' }}>Live Congestion Overlay Map</h2>
         </div>
-        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--clr-green)' }}></span> Normal
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }}></span> Normal
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--clr-yellow)' }}></span> Moderate
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--warning)' }}></span> Moderate
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--clr-red)' }}></span> Critical
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)' }}></span> Critical
           </span>
         </div>
       </div>
 
-      {/* SVG Interactive Map */}
+      {/* SVG Interactive Map (Control Room style dark screen for high contrast overlay) */}
       <div 
-        style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.2)', borderRadius: '12px', padding: '10px', overflow: 'hidden' }}
+        style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', background: '#0f172a', borderRadius: '12px', padding: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}
         onMouseMove={handleMouseMove}
       >
         <svg 
           viewBox="0 0 600 380" 
           style={{ width: '100%', maxHeight: '350px', display: 'block' }}
         >
-          {/* Defs for gradients or filter effects */}
-          <defs>
-            <filter id="glow-indigo">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* Grid Background Lines (Sleek Cyber Grid) */}
-          <g stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1">
+          {/* Grid Background Lines */}
+          <g stroke="rgba(255, 255, 255, 0.04)" strokeWidth="1">
             {Array.from({ length: 12 }).map((_, i) => (
               <line key={`x-${i}`} x1={i * 50} y1="0" x2={i * 50} y2="380" />
             ))}
@@ -93,9 +79,9 @@ export default function MapView({ sectors, incidents }) {
               style={{
                 fill: getSectorStyles(sectors.find(s => s.id === 'uptown').congestion).fill,
                 stroke: getSectorStyles(sectors.find(s => s.id === 'uptown').congestion).stroke,
-                strokeWidth: '1.5',
+                strokeWidth: '2',
                 cursor: 'pointer',
-                transition: 'all 0.3s'
+                transition: 'all 0.2s'
               }}
               onMouseEnter={() => setHoveredSector(sectors.find(s => s.id === 'uptown'))}
               onMouseLeave={() => setHoveredSector(null)}
@@ -109,9 +95,9 @@ export default function MapView({ sectors, incidents }) {
               style={{
                 fill: getSectorStyles(sectors.find(s => s.id === 'westside').congestion).fill,
                 stroke: getSectorStyles(sectors.find(s => s.id === 'westside').congestion).stroke,
-                strokeWidth: '1.5',
+                strokeWidth: '2',
                 cursor: 'pointer',
-                transition: 'all 0.3s'
+                transition: 'all 0.2s'
               }}
               onMouseEnter={() => setHoveredSector(sectors.find(s => s.id === 'westside'))}
               onMouseLeave={() => setHoveredSector(null)}
@@ -125,9 +111,9 @@ export default function MapView({ sectors, incidents }) {
               style={{
                 fill: getSectorStyles(sectors.find(s => s.id === 'downtown').congestion).fill,
                 stroke: getSectorStyles(sectors.find(s => s.id === 'downtown').congestion).stroke,
-                strokeWidth: '1.5',
+                strokeWidth: '2',
                 cursor: 'pointer',
-                transition: 'all 0.3s'
+                transition: 'all 0.2s'
               }}
               onMouseEnter={() => setHoveredSector(sectors.find(s => s.id === 'downtown'))}
               onMouseLeave={() => setHoveredSector(null)}
@@ -141,9 +127,9 @@ export default function MapView({ sectors, incidents }) {
               style={{
                 fill: getSectorStyles(sectors.find(s => s.id === 'highway').congestion).fill,
                 stroke: getSectorStyles(sectors.find(s => s.id === 'highway').congestion).stroke,
-                strokeWidth: '1.5',
+                strokeWidth: '2',
                 cursor: 'pointer',
-                transition: 'all 0.3s'
+                transition: 'all 0.2s'
               }}
               onMouseEnter={() => setHoveredSector(sectors.find(s => s.id === 'highway'))}
               onMouseLeave={() => setHoveredSector(null)}
@@ -154,27 +140,26 @@ export default function MapView({ sectors, incidents }) {
           <path 
             d="M 150,10 Q 300,190 450,370" 
             fill="none" 
-            stroke="rgba(255, 255, 255, 0.15)" 
+            stroke="rgba(255, 255, 255, 0.1)" 
             strokeWidth="3" 
             strokeDasharray="5,5" 
           />
           <path 
             d="M 10,200 L 590,200" 
             fill="none" 
-            stroke="rgba(255, 255, 255, 0.15)" 
+            stroke="rgba(255, 255, 255, 0.1)" 
             strokeWidth="3" 
             strokeDasharray="5,5" 
           />
 
           {/* Texts indicating sector labels */}
-          <text x="120" y="80" fill="rgba(255, 255, 255, 0.5)" fontSize="14" fontWeight="600" style={{ pointerEvents: 'none' }}>UPTOWN</text>
-          <text x="100" y="270" fill="rgba(255, 255, 255, 0.5)" fontSize="14" fontWeight="600" style={{ pointerEvents: 'none' }}>WESTSIDE</text>
-          <text x="430" y="130" fill="rgba(255, 255, 255, 0.5)" fontSize="14" fontWeight="600" style={{ pointerEvents: 'none' }}>DOWNTOWN CORE</text>
-          <text x="380" y="325" fill="rgba(255, 255, 255, 0.5)" fontSize="14" fontWeight="600" style={{ pointerEvents: 'none' }}>HIGHWAY 101 LINK</text>
+          <text x="120" y="80" fill="rgba(255, 255, 255, 0.45)" fontSize="13" fontWeight="700" style={{ pointerEvents: 'none', letterSpacing: '0.05em' }}>UPTOWN</text>
+          <text x="100" y="270" fill="rgba(255, 255, 255, 0.45)" fontSize="13" fontWeight="700" style={{ pointerEvents: 'none', letterSpacing: '0.05em' }}>WESTSIDE</text>
+          <text x="420" y="130" fill="rgba(255, 255, 255, 0.45)" fontSize="13" fontWeight="700" style={{ pointerEvents: 'none', letterSpacing: '0.05em' }}>DOWNTOWN CORE</text>
+          <text x="370" y="325" fill="rgba(255, 255, 255, 0.45)" fontSize="13" fontWeight="700" style={{ pointerEvents: 'none', letterSpacing: '0.05em' }}>HIGHWAY 101 LINK</text>
 
           {/* Incident Pins */}
           {incidents.map((inc) => {
-            // Coordinate mappings
             let coords = { x: 300, y: 190 };
             if (inc.sector === 'uptown') coords = { x: 160, y: 110 };
             else if (inc.sector === 'westside') coords = { x: 120, y: 220 };
@@ -183,15 +168,15 @@ export default function MapView({ sectors, incidents }) {
 
             return (
               <g key={inc.id} style={{ cursor: 'pointer' }}>
-                <circle cx={coords.x} cy={coords.y} r="18" fill="rgba(239, 68, 68, 0.2)" stroke="var(--clr-red)" strokeWidth="1" strokeDasharray="3,2" />
-                <circle cx={coords.x} cy={coords.y} r="6" fill="var(--clr-red)" />
+                <circle cx={coords.x} cy={coords.y} r="18" fill="rgba(198, 40, 40, 0.15)" stroke="var(--danger)" strokeWidth="1" strokeDasharray="3,2" />
+                <circle cx={coords.x} cy={coords.y} r="6" fill="var(--danger)" />
                 <path 
                   d={`M ${coords.x} ${coords.y} L ${coords.x - 10} ${coords.y - 25} L ${coords.x + 40} ${coords.y - 25}`} 
-                  stroke="rgba(255, 255, 255, 0.3)" 
+                  stroke="rgba(255, 255, 255, 0.25)" 
                   strokeWidth="1" 
                   fill="none" 
                 />
-                <text x={coords.x + 8} y={coords.y - 29} fill="var(--clr-red)" fontSize="10" fontWeight="bold">
+                <text x={coords.x + 8} y={coords.y - 29} fill="var(--danger)" fontSize="10" fontWeight="800">
                   {inc.type}
                 </text>
               </g>
@@ -199,49 +184,49 @@ export default function MapView({ sectors, incidents }) {
           })}
         </svg>
 
-        {/* Dynamic Tooltip Popup overlay */}
+        {/* Dynamic Tooltip Popup overlay (Light Solid Color Card for perfect contrast) */}
         {hoveredSector && (
           <div 
             style={{
               position: 'absolute',
               top: tooltipPos.y,
               left: tooltipPos.x,
-              background: 'rgba(15, 23, 42, 0.95)',
-              border: '1px solid var(--border-color-glow)',
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border-color)',
               borderRadius: '8px',
-              padding: '12px',
+              padding: '14px',
               pointerEvents: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+              boxShadow: 'var(--shadow-md)',
               zIndex: 10,
-              minWidth: '180px',
+              minWidth: '190px',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '4px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.02em' }}>
                 {hoveredSector.name}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Congestion:</span>
-              <span style={{ fontWeight: 'bold', color: hoveredSector.congestion > 65 ? 'var(--clr-red)' : hoveredSector.congestion > 35 ? 'var(--clr-yellow)' : 'var(--clr-green)' }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Congestion:</span>
+              <span style={{ fontWeight: '700', color: hoveredSector.congestion > 65 ? 'var(--danger)' : hoveredSector.congestion > 35 ? 'var(--warning)' : 'var(--success)' }}>
                 {hoveredSector.congestion}%
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Flow Speed:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{hoveredSector.speed} mph</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Flow Speed:</span>
+              <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{hoveredSector.speed} mph</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Traffic Load:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{hoveredSector.flowRate} veh/h</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Traffic Load:</span>
+              <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{hoveredSector.flowRate} veh/h</span>
             </div>
             {hoveredSector.diversionActive && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(99, 102, 241, 0.15)', borderRadius: '4px', padding: '4px 6px', marginTop: '4px', fontSize: '10px', color: 'var(--clr-indigo)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(15, 76, 129, 0.08)', borderRadius: '4px', padding: '4px 6px', marginTop: '6px', fontSize: '10px', color: 'var(--primary)', fontWeight: '700' }}>
                 <ArrowUpRight size={12} />
-                <span>AI Diversion Route Active</span>
+                <span>AI Diversion Active</span>
               </div>
             )}
           </div>

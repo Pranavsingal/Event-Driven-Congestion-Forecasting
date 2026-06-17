@@ -12,10 +12,10 @@ export default function ModelAnalytics() {
   return (
     <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
       {/* Models Status and Metrics Card */}
-      <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '20px' }}>
-          <Cpu size={22} color="var(--clr-yellow)" />
-          <h2 style={{ fontSize: '22px', margin: 0 }}>AI Engine Model Registry</h2>
+      <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px', background: 'var(--card-bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
+          <Cpu size={22} color="var(--warning)" />
+          <h2 style={{ fontSize: '22px', margin: 0, color: 'var(--text-primary)' }}>AI Engine Model Registry</h2>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -23,8 +23,8 @@ export default function ModelAnalytics() {
             <div 
               key={idx}
               style={{
-                background: 'rgba(0, 0, 0, 0.18)',
-                border: '1px solid rgba(255, 255, 255, 0.04)',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'grid',
@@ -35,7 +35,7 @@ export default function ModelAnalytics() {
             >
               <div>
                 <h3 style={{ fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CircleDashed size={16} color="var(--clr-yellow)" />
+                  <CircleDashed size={16} color="var(--warning)" />
                   {model.name}
                 </h3>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Engine: {model.algorithm}</span>
@@ -60,9 +60,9 @@ export default function ModelAnalytics() {
                   borderRadius: '20px', 
                   fontSize: '10px', 
                   fontWeight: 'bold', 
-                  background: 'rgba(245, 158, 11, 0.12)', 
-                  color: 'var(--clr-yellow)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)'
+                  background: '#fff3e0', 
+                  color: 'var(--warning)',
+                  border: '1px solid var(--warning)'
                 }}>
                   {model.status.split(' ')[0]}
                 </span>
@@ -73,14 +73,14 @@ export default function ModelAnalytics() {
       </div>
 
       {/* Feature Importance Column */}
-      <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '20px' }}>
+      <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px', background: 'var(--card-bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
           <TrendingUp size={22} color="var(--text-muted)" />
           <h2 style={{ fontSize: '20px', margin: 0, color: 'var(--text-secondary)' }}>Feature Importance</h2>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 10px' }}>
-          <AlertTriangle size={36} color="var(--clr-yellow)" style={{ marginBottom: '8px' }} />
+          <AlertTriangle size={36} color="var(--warning)" style={{ marginBottom: '8px' }} />
           <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Weights Unavailable</h3>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '150%' }}>
             Gini feature weights cannot be plotted. The training files (such as <code>closure_classifier.py</code>) are currently empty template shells. Fit models on raw datasets inside <code>ai-service/models/</code> to calculate parameters.
