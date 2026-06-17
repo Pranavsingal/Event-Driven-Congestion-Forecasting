@@ -4,19 +4,29 @@ import MetricCards from '../components/MetricCards';
 import MapView from '../components/MapView';
 import IncidentList from '../components/IncidentList';
 import PredictionDisplayCards from '../components/PredictionDisplayCards';
+import DeploymentPlanCards from '../components/DeploymentPlanCards';
 import { aiService } from '../services/api';
+import { planner } from '../services/planner';
 
 export default function Dashboard() {
   const [filters, setFilters] = useState({
     mode: 'predictive', // 'reactive' or 'predictive'
     timeOfDay: 'evening', // 'morning', 'midday', 'evening', 'night'
     event: 'derby_match', // 'none', 'stadium_concert', 'derby_match', 'rain_storm', 'highway_maintenance'
-    severity: 'all' // 'all', 'low', 'moderate', 'heavy'
+    severity: 'all', // 'all', 'low', 'moderate', 'heavy'
+    cause: 'accident',
+    corridor: 'Hwy 101 Corridor',
+    zone: 'Downtown Core',
+    junction: 'SilkBoardJunc',
+    veh_type: 'private_car',
+    hour: 17,
+    day: 3
   });
 
   const [sectors, setSectors] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [predictionData, setPredictionData] = useState(null);
+  const [planData, setPlanData] = useState(null);
   const [stats, setStats] = useState({
     congestionIndex: 0,
     activeIncidents: 0,
@@ -164,11 +174,21 @@ export default function Dashboard() {
       predictionAccuracy: precisionVal
     });
 
+    // Call planner to generate dynamic response plan
+    const plan = planner.generate_plan(filters);
+    setPlanData(plan);
+
     // Fetch live predictions from the AI microservice / simulated model registry
     aiService.getCongestionPrediction(filters)
       .then(res => {
         if (res && res.success) {
           setPredictionData(res.prediction);
+          // Update the global forecast precision KPI with the active prediction confidence
+          const confidenceNum = parseFloat(res.prediction.severityConfidence);
+          setStats(prev => ({
+            ...prev,
+            predictionAccuracy: isNaN(confidenceNum) ? res.prediction.severityConfidence : confidenceNum
+          }));
         }
       });
 
@@ -220,6 +240,7 @@ export default function Dashboard() {
         {/* Right Side: Map & Incident list in a flex column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <PredictionDisplayCards predictionData={predictionData} />
+          <DeploymentPlanCards planData={planData} />
           
           <div style={{ flex: 1 }}>
             <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} />

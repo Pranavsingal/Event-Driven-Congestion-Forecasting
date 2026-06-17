@@ -69,68 +69,161 @@ export default function SidebarFilters({ filters, setFilters }) {
         </div>
       </div>
 
-      {/* Time of Day */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <label htmlFor="timeOfDay" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-          Time Period
-        </label>
-        <select 
-          id="timeOfDay"
-          name="timeOfDay"
-          value={filters.timeOfDay} 
-          onChange={handleChange}
-          style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
-        >
-          <option value="morning">Morning Peak (07:00 - 09:30)</option>
-          <option value="midday">Mid-Day (10:00 - 15:30)</option>
-          <option value="evening">Evening Peak (16:00 - 19:30)</option>
-          <option value="night">Night Run (20:00 - 06:00)</option>
-        </select>
+      {/* Time & Day Sliders */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
+        {/* Hour Slider */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            <label htmlFor="hour">Start Hour</label>
+            <span style={{ color: 'var(--primary)', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+              {filters.hour ? filters.hour.toString().padStart(2, '0') : '12'}:00 {filters.hour >= 12 ? 'PM' : 'AM'}
+            </span>
+          </div>
+          <input 
+            type="range" 
+            id="hour" 
+            name="hour" 
+            min="0" 
+            max="23" 
+            value={filters.hour || 12} 
+            onChange={handleChange}
+            style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--primary)' }}
+          />
+        </div>
+
+        {/* Day of Week Slider */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            <label htmlFor="day">Day of Week</label>
+            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][(filters.day || 3) - 1]}
+            </span>
+          </div>
+          <input 
+            type="range" 
+            id="day" 
+            name="day" 
+            min="1" 
+            max="7" 
+            value={filters.day || 3} 
+            onChange={handleChange}
+            style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--primary)' }}
+          />
+        </div>
       </div>
 
-      {/* External Event Trigger */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Calendar size={15} color="var(--warning)" />
-          <label htmlFor="event" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Urban Event Trigger
+      {/* Categorical Dropdowns */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        
+        {/* Cause Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label htmlFor="cause" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Event Cause
           </label>
+          <select 
+            id="cause"
+            name="cause"
+            value={filters.cause || 'accident'} 
+            onChange={handleChange}
+            style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+          >
+            <option value="accident">Accident</option>
+            <option value="congestion">Regular Congestion</option>
+            <option value="construction">Road Construction</option>
+            <option value="vip_movement">VIP Movement</option>
+            <option value="water_logging">Water Logging</option>
+            <option value="vehicle_breakdown">Vehicle Breakdown</option>
+            <option value="pot_holes">Potholes</option>
+            <option value="public_event">Public Event</option>
+          </select>
         </div>
-        <select 
-          id="event"
-          name="event"
-          value={filters.event} 
-          onChange={handleChange}
-          style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
-        >
-          <option value="none">Standard Patterns (None)</option>
-          <option value="stadium_concert">Rock Concert (Sold Out, Cap: 50K)</option>
-          <option value="derby_match">Local Derby (High Tension, Cap: 70K)</option>
-          <option value="rain_storm">Severe Downpour (Flooding Warning)</option>
-          <option value="highway_maintenance">Highway 101 Expansion (Lane Closure)</option>
-        </select>
-      </div>
 
-      {/* Severity Filter */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <ShieldAlert size={15} color="var(--danger)" />
-          <label htmlFor="severity" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Congestion Level Focus
+        {/* Corridor Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label htmlFor="corridor" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Corridor Route
           </label>
+          <select 
+            id="corridor"
+            name="corridor"
+            value={filters.corridor || 'Hwy 101 Corridor'} 
+            onChange={handleChange}
+            style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+          >
+            <option value="Hwy 101 Corridor">Hwy 101 Corridor</option>
+            <option value="ORR East 1">ORR East 1</option>
+            <option value="Hosur Road">Hosur Road</option>
+            <option value="Bannerghata Road">Bannerghata Road</option>
+            <option value="Bellary Road 1">Bellary Road 1</option>
+            <option value="Old Airport Road">Old Airport Road</option>
+            <option value="Tumkur Road">Tumkur Road</option>
+            <option value="Mysore Road">Mysore Road</option>
+          </select>
         </div>
-        <select 
-          id="severity"
-          name="severity"
-          value={filters.severity} 
-          onChange={handleChange}
-          style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
-        >
-          <option value="all">Display All Sectors</option>
-          <option value="low">Low Congestion Only</option>
-          <option value="moderate">Moderate Congestion Only</option>
-          <option value="heavy">Critical/Heavy Only</option>
-        </select>
+
+        {/* Zone Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label htmlFor="zone" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Zone / Sector
+          </label>
+          <select 
+            id="zone"
+            name="zone"
+            value={filters.zone || 'Downtown Core'} 
+            onChange={handleChange}
+            style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+          >
+            <option value="Downtown Core">Downtown Core</option>
+            <option value="Central Zone 1">Central Zone 1</option>
+            <option value="East Zone 1">East Zone 1</option>
+            <option value="North Zone 1">North Zone 1</option>
+            <option value="South Zone 1">South Zone 1</option>
+            <option value="West Zone 1">West Zone 1</option>
+          </select>
+        </div>
+
+        {/* Junction Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label htmlFor="junction" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Target Junction
+          </label>
+          <select 
+            id="junction"
+            name="junction"
+            value={filters.junction || 'SilkBoardJunc'} 
+            onChange={handleChange}
+            style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+          >
+            <option value="SilkBoardJunc">Silk Board Junction</option>
+            <option value="HebbalFlyoverJunc">Hebbal Flyover Junction</option>
+            <option value="TrinityCircle">Trinity Circle Junction</option>
+            <option value="DairyCircle">Dairy Circle Junction</option>
+            <option value="YeshwanthpuraCircle">Yeshwanthpura Circle</option>
+            <option value="AgaraJunction">Agara Junction</option>
+          </select>
+        </div>
+
+        {/* Vehicle Type Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label htmlFor="veh_type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Vehicle Classification
+          </label>
+          <select 
+            id="veh_type"
+            name="veh_type"
+            value={filters.veh_type || 'private_car'} 
+            onChange={handleChange}
+            style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+          >
+            <option value="private_car">Private Car</option>
+            <option value="bmtc_bus">BMTC Bus</option>
+            <option value="heavy_vehicle">Heavy Vehicle</option>
+            <option value="truck">Truck</option>
+            <option value="taxi">Taxi / Ride-Share</option>
+            <option value="auto">Auto-Rickshaw</option>
+          </select>
+        </div>
+
       </div>
 
       {/* Simulation Meta Stats */}
