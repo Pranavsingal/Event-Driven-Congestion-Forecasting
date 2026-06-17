@@ -3,6 +3,8 @@ import SidebarFilters from '../components/SidebarFilters';
 import MetricCards from '../components/MetricCards';
 import MapView from '../components/MapView';
 import IncidentList from '../components/IncidentList';
+import PredictionDisplayCards from '../components/PredictionDisplayCards';
+import { aiService } from '../services/api';
 
 export default function Dashboard() {
   const [filters, setFilters] = useState({
@@ -14,6 +16,7 @@ export default function Dashboard() {
 
   const [sectors, setSectors] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [predictionData, setPredictionData] = useState(null);
   const [stats, setStats] = useState({
     congestionIndex: 0,
     activeIncidents: 0,
@@ -161,6 +164,14 @@ export default function Dashboard() {
       predictionAccuracy: precisionVal
     });
 
+    // Fetch live predictions from the AI microservice / simulated model registry
+    aiService.getCongestionPrediction(filters)
+      .then(res => {
+        if (res && res.success) {
+          setPredictionData(res.prediction);
+        }
+      });
+
   }, [filters]);
 
   const handleDispatch = (id) => {
@@ -208,6 +219,8 @@ export default function Dashboard() {
 
         {/* Right Side: Map & Incident list in a flex column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <PredictionDisplayCards predictionData={predictionData} />
+          
           <div style={{ flex: 1 }}>
             <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} />
           </div>
