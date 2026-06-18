@@ -19,7 +19,7 @@ def train_duration_model():
     
     X_train, X_test, y_train, y_test = splits['duration']
     
-    model = XGBRegressor(n_estimators=200, random_state=42, eval_metric='rmse')
+    model = XGBRegressor(n_estimators=176, random_state=42, eval_metric='rmse') #changed
     
     print("Training model...")
     model.fit(X_train, y_train)

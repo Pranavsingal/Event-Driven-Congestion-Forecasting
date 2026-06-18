@@ -18,6 +18,15 @@ export default function ModelAnalytics() {
     { rank: 6, feature: 'Day of Week / Holiday Flag', weight: 0.03, color: 'var(--text-muted)' }
   ];
 
+  const [evalLog, setEvalLog] = React.useState('Loading AI evaluation logs...');
+
+  React.useEffect(() => {
+    fetch('/ai-assets/model_eval_report.txt')
+      .then(res => res.text())
+      .then(text => setEvalLog(text))
+      .catch(err => setEvalLog('Failed to load evaluation logs.'));
+  }, []);
+
   return (
     <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
       {/* Models Status and Metrics Card */}
@@ -79,6 +88,24 @@ export default function ModelAnalytics() {
             </div>
           ))}
         </div>
+
+        {/* Live Evaluation Logs */}
+        <div style={{ marginTop: '20px' }}>
+          <h3 style={{ fontSize: '16px', color: 'var(--text-primary)', marginBottom: '12px' }}>Raw Evaluation Output</h3>
+          <pre style={{
+            background: '#1e1e1e',
+            color: '#a9dc76',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            overflowX: 'auto',
+            maxHeight: '300px',
+            overflowY: 'auto'
+          }}>
+            {evalLog}
+          </pre>
+        </div>
       </div>
 
       {/* Feature Importance Column */}
@@ -89,26 +116,12 @@ export default function ModelAnalytics() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-          {featureImportances.map((f, idx) => (
-            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
-                  {f.rank}. {f.feature}
-                </span>
-                <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontWeight: '600' }}>
-                  {Math.round(f.weight * 100)}%
-                </span>
-              </div>
-              <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                <div style={{ 
-                  width: `${f.weight * 100}%`, 
-                  height: '100%', 
-                  background: f.color, 
-                  borderRadius: '3px'
-                }} />
-              </div>
-            </div>
-          ))}
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Live XGBoost global feature weights determining event severity & duration predictions.</p>
+          <img 
+            src="/ai-assets/feature_importance.png" 
+            alt="Feature Importance Chart" 
+            style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+          />
         </div>
       </div>
     </div>

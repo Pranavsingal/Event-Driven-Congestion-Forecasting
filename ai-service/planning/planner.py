@@ -26,6 +26,17 @@ except FileNotFoundError:
     print("Warning: ML models not found.")
     severity_model, duration_model, closure_model = None, None, None
 
+try:
+    import onnxruntime as ort
+    dl_model_path = os.path.join(MODELS_DIR, 'dl_duration_model.onnx')
+    if os.path.exists(dl_model_path):
+        dl_session = ort.InferenceSession(dl_model_path)
+    else:
+        dl_session = None
+except ImportError:
+    print("Warning: onnxruntime not installed. DL comparison disabled.")
+    dl_session = None
+
 
 def safe_encode(encoder, value):
     """Encodes a categorical value safely, falling back to 'Unknown' if unseen."""
@@ -68,12 +79,12 @@ def extract_features(raw_data: dict) -> pd.DataFrame:
     lat = raw_data.get('latitude', 12.9716)
     lng = raw_data.get('longitude', 77.5946)
     
-    # 1. Encode Categoricals
-    enc_cause = safe_encode(label_encoders['event_cause'], raw_data.get('event_cause', 'Unknown'))
-    enc_veh = safe_encode(label_encoders['veh_type'], raw_data.get('veh_type', 'Unknown'))
-    enc_corridor = safe_encode(label_encoders['corridor'], raw_data.get('corridor', 'Unknown'))
-    enc_zone = safe_encode(label_encoders['zone'], raw_data.get('zone', 'Unknown'))
-    enc_junction = safe_encode(label_encoders['junction'], raw_data.get('junction', 'Unknown'))
+    # 1. Encode Categoricals (Fallback to 'Unknown' if missing or None)
+    enc_cause = safe_encode(label_encoders['event_cause'], raw_data.get('event_cause') or 'Unknown')
+    enc_veh = safe_encode(label_encoders['veh_type'], raw_data.get('veh_type') or 'Unknown')
+    enc_corridor = safe_encode(label_encoders['corridor'], raw_data.get('corridor') or 'Unknown')
+    enc_zone = safe_encode(label_encoders['zone'], raw_data.get('zone') or 'Unknown')
+    enc_junction = safe_encode(label_encoders['junction'], raw_data.get('junction') or 'Unknown')
     
     # 2. Datetime Features
     start_hour = dt.hour
@@ -124,6 +135,13 @@ def generate_plan(input_dict: dict) -> dict:
     
     dur_pred = duration_model.predict(X)[0]
     dur_pred = max(0, float(dur_pred))
+    
+    # Early skip if duration is zero
+    if round(dur_pred, 1) <= 0:
+        return {
+            "status": "skipped", 
+            "reason": "Predicted duration is ~0 mins. No active response required."
+        }
     
     closure_pred = bool(closure_model.predict(X)[0])
     
@@ -190,6 +208,20 @@ def generate_plan(input_dict: dict) -> dict:
     }
     plan["manpower"] = manpower_matrix.get((severity_label, closure_pred, dur_cat), 2)
     
+    # DL Model Inference
+    dl_comparison = None
+    if dl_session:
+        # ONNX requires float32 inputs
+        dl_input = {dl_session.get_inputs()[0].name: X.values.astype(np.float32)}
+        dl_dur_pred = float(dl_session.run(None, dl_input)[0][0][0])
+        dl_derived_severity = "High" if dl_dur_pred > 60 else "Medium"
+        dl_comparison = {
+            "dl_duration_prediction": round(dl_dur_pred, 1),
+            "dl_derived_severity": dl_derived_severity,
+            "xgboost_severity": severity_label,
+            "match": dl_derived_severity == severity_label
+        }
+        
     # Final Output Dictionary
     output = {
         "predictions": {
@@ -198,7 +230,8 @@ def generate_plan(input_dict: dict) -> dict:
             "requires_closure": closure_pred
         },
         "plan": plan,
-        "historical_context": history_msg
+        "historical_context": history_msg,
+        "dl_comparison": dl_comparison
     }
     
     return output

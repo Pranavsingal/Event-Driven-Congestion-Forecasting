@@ -126,7 +126,7 @@ export default function App() {
             }}
           >
             <Cpu size={15} />
-            Model Registry
+            About AI
           </button>
         </nav>
       </header>
