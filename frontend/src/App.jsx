@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import ModelAnalytics from './pages/ModelAnalytics';
+import EdaInsights from './pages/EdaInsights';
 import { Eye, ShieldAlert, Cpu, BarChart2, Radio } from 'lucide-react';
 
 export default function App() {
@@ -15,6 +16,8 @@ export default function App() {
         return <History />;
       case 'analytics':
         return <ModelAnalytics />;
+      case 'eda':
+        return <EdaInsights />;
       default:
         return <Dashboard />;
     }
@@ -127,6 +130,29 @@ export default function App() {
           >
             <Cpu size={15} />
             About AI
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setActiveTab('eda')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: activeTab === 'eda' ? 'var(--primary)' : 'transparent',
+              color: activeTab === 'eda' ? '#fff' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'eda' ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 0.2s'
+            }}
+          >
+            <BarChart2 size={15} />
+            EDA Insights
           </button>
         </nav>
       </header>
