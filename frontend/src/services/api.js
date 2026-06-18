@@ -51,10 +51,12 @@ export const aiService = {
 export const backendService = {
   /**
    * Fetch live congestion data for all monitoring sectors
+   * @param {Object} params - filters (timeOfDay, event, mode, severity)
    */
-  async getSectors() {
+  async getSectors(params) {
+    const query = params ? new URLSearchParams(params).toString() : '';
     try {
-      const response = await fetch(`${BACKEND_API_URL}/sectors`);
+      const response = await fetch(`${BACKEND_API_URL}/sectors?${query}`);
       return await handleResponse(response);
     } catch (err) {
       console.warn('Backend API connection offline. Using local sectors store.');
@@ -64,10 +66,12 @@ export const backendService = {
 
   /**
    * Get active incidents reported across the city segments
+   * @param {Object} params - filters (event)
    */
-  async getIncidents() {
+  async getIncidents(params) {
+    const query = params ? new URLSearchParams(params).toString() : '';
     try {
-      const response = await fetch(`${BACKEND_API_URL}/incidents`);
+      const response = await fetch(`${BACKEND_API_URL}/incidents?${query}`);
       return await handleResponse(response);
     } catch (err) {
       console.warn('Backend API connection offline. Using local incidents store.');

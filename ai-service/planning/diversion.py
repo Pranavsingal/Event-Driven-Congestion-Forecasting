@@ -1,5 +1,84 @@
-"""
-Diversion Algorithm
-Responsible for scoring alternative routes and determining the optimal
-traffic diversion paths in case of road closures.
-"""
+from planning.junction_db import JUNCTION_DATABASE
+
+def score_route(alt_route: dict, is_peak: bool, cause: str) -> float:
+    """
+    Calculates a detour suitability score. 
+    Lower score represents a better (faster/less congested) bypass route.
+    Formula: Score = (distance * 2) + (base_time * congestion_factor) + (peak_hour_penalty) + (cause_multiplier)
+    """
+    distance_penalty = alt_route["distance_km"] * 2.0
+    congestion_history = alt_route["base_time_mins"] * alt_route["historical_congestion_factor"]
+    
+    # Peak hour penalty
+    peak_penalty = 6.0 if is_peak else 0.0
+    
+    # Event cause impact adjustments
+    cause_multiplier = 1.0
+    cause_lower = cause.lower()
+    if "water_logging" in cause_lower or "flood" in cause_lower:
+        cause_multiplier = 1.5  # flood affects travel times heavily
+    elif "accident" in cause_lower:
+        cause_multiplier = 1.2
+        
+    score = (distance_penalty + congestion_history + peak_penalty) * cause_multiplier
+    return round(score, 1)
+
+def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion") -> list:
+    """
+    For any given junction, scores and ranks the top candidate diversion routes.
+    Returns a list of alternate routes with distance, scored ETA, and justification.
+    """
+    is_peak = (7 <= hour <= 10) or (17 <= hour <= 20)
+    
+    # Lookup junction
+    junction = JUNCTION_DATABASE.get(junction_name)
+    if not junction:
+        # Check case-insensitive or partial match
+        matched_key = None
+        for k in JUNCTION_DATABASE.keys():
+            if k.lower() == str(junction_name).lower():
+                matched_key = k
+                break
+        if matched_key:
+            junction = JUNCTION_DATABASE[matched_key]
+        else:
+            junction = JUNCTION_DATABASE["Unknown"]
+            
+    scored_alternatives = []
+    for idx, alt in enumerate(junction["alternatives"]):
+        score = score_route(alt, is_peak, cause)
+        
+        # Calculate dynamic ETA in minutes (based on score, rounded)
+        eta = max(int(score / 1.5), alt["base_time_mins"] + (3 if is_peak else 0))
+        
+        # Formulate a structured reason
+        if idx == 0:
+            reason = "Lowest congestion history with standard lane width."
+        elif idx == 1:
+            reason = "Slightly longer bypass but avoids main residential merges."
+        else:
+            reason = "Secondary backup artery. Recommended if key routes flood."
+            
+        scored_alternatives.append({
+            "rank": idx + 1,
+            "route_name": alt["route"],
+            "distance_km": alt["distance_km"],
+            "eta_mins": eta,
+            "suitability_score": score,
+            "reason": reason
+        })
+        
+    # Sort alternatives by suitability score (ascending - lower score is better)
+    scored_alternatives = sorted(scored_alternatives, key=lambda x: x["suitability_score"])
+    
+    # Re-rank after sorting
+    for rank_idx, item in enumerate(scored_alternatives):
+        item["rank"] = rank_idx + 1
+        
+    return scored_alternatives
+
+if __name__ == "__main__":
+    import json
+    print("Testing Diversion Route Scoring and Ranking...")
+    results = get_diversions("SilkBoardJunc", hour=17, cause="accident")
+    print(json.dumps(results, indent=4))

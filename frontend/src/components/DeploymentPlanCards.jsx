@@ -12,7 +12,7 @@ import {
   AlertOctagon
 } from 'lucide-react';
 
-export default function DeploymentPlanCards({ planData }) {
+export default function DeploymentPlanCards({ planData, filters }) {
   if (!planData) {
     return (
       <div className="glass" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -32,6 +32,21 @@ export default function DeploymentPlanCards({ planData }) {
     recommendedDiversion,
     etaResponders
   } = planData;
+
+  const handleDownloadPDF = () => {
+    const queryParams = new URLSearchParams({
+      cause: filters?.cause || 'Unknown',
+      corridor: filters?.corridor || 'Unknown',
+      zone: filters?.zone || 'Unknown',
+      junction: filters?.junction || 'Unknown',
+      veh_type: filters?.veh_type || 'Unknown',
+      hour: filters?.hour || 12,
+      day: filters?.day || 3,
+      event: filters?.event || 'none'
+    }).toString();
+    const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+    window.open(`${AI_SERVICE_URL}/pdf?${queryParams}`, '_blank');
+  };
 
   // Colors matching the dashboard severity
   const getSeverityStyles = () => {
@@ -63,15 +78,37 @@ export default function DeploymentPlanCards({ planData }) {
       
       {/* Header and Severity/Duration/Closure Badges */}
       <div className="glass" style={{ padding: '24px', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Activity size={16} color="var(--primary)" />
             <span style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
               Junction Tactical Dispatch Plan
             </span>
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            Simulation Day: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{dayName}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              Simulation Day: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{dayName}</span>
+            </div>
+            <button
+              onClick={handleDownloadPDF}
+              style={{
+                background: 'var(--primary)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all 0.2s',
+                fontFamily: 'inherit'
+              }}
+            >
+              Download PDF Action Sheet
+            </button>
           </div>
         </div>
 

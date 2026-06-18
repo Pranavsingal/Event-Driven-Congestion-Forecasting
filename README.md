@@ -129,14 +129,14 @@ The dashboard features a glassmorphic layout with live interactive SVG district 
 
 ## 🧠 ML Forecasting Engine
 
-The platform utilizes three separate machine learning models trained on historical event data:
-1. **Severity Classifier (XGBoost)**: Ranks predicted congestions into Low, Moderate, and Critical impact alerts.
-2. **Duration Regressor (Random Forest)**: Evaluates the expected duration (in minutes) of road bottlenecks.
-3. **Closure Classifier (LightGBM)**: Calculates the probability of a partial or complete road closure requirement.
-4. **LSTM Neural Net (RNN)**: Shadow model mapping sequential traffic inflows during peak hours.
+The platform utilizes four separate machine learning models trained on historical event data:
+1. **Severity Classifier (XGBoost)**: Ranks predicted congestions into Low, Moderate, and Critical threat alerts.
+2. **Duration Regressor (XGBoost)**: Evaluates the expected duration (in minutes) of road bottlenecks.
+3. **Closure Classifier (Random Forest)**: Calculates the probability of a partial or complete road closure requirement.
+4. **DL Duration Forecaster (PyTorch MLP)**: Deep learning model deployed in shadow mode evaluating sequential traffic inflows during peak hours.
 
 ### Key Predictors (Gini Feature Importance):
-* Scheduled Event Capacity (Stadium/Concert seats filled)
-* Historical Hourly Segment Volumes
-* Precipitation Intensity (Weather inputs)
-* Corridor Velocity Baselines
+* Scheduled Event Trigger / Cause (e.g. Water Logging, Crash Accident, Concert, Derby Match)
+* Target Junction and Affected Corridor
+* Time-of-Day Traffic Volumes (Morning/Evening peak hour indicators)
+* Geo-location Cluster Zones (KMeans k=10 coordinates)

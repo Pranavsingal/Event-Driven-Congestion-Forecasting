@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, Search, ArrowDownRight, ArrowUpRight, BarChart2 } from 'lucide-react';
 
 export default function History() {
+  const [searchTerm, setSearchTerm] = useState('');
+
   const historicalReports = [
     { id: 1, date: '2026-06-15', eventName: 'Stadium Concert (Coldplay)', sector: 'Westside', avgCongestion: '68%', PeakCongestion: '89%', delay: '42 mins', diversionUsed: 'Route 10A & 12B', efficiency: '+18%' },
     { id: 2, date: '2026-06-12', eventName: 'Derby Soccer Match', sector: 'Westside', avgCongestion: '74%', PeakCongestion: '92%', delay: '54 mins', diversionUsed: 'Route 12B & Signal Priority', efficiency: '+24%' },
@@ -9,6 +11,12 @@ export default function History() {
     { id: 4, date: '2026-06-08', eventName: 'Highway Lane Resurfacing', sector: 'Highway 101', avgCongestion: '58%', PeakCongestion: '78%', delay: '29 mins', diversionUsed: 'Broadway St Alternate', efficiency: '+15%' },
     { id: 5, date: '2026-06-05', eventName: 'Morning Peak Outflow', sector: 'Uptown', avgCongestion: '44%', PeakCongestion: '59%', delay: '15 mins', diversionUsed: 'None (Standard Signals)', efficiency: '0%' }
   ];
+
+  const filteredReports = historicalReports.filter(report => 
+    report.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    report.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    report.diversionUsed.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="glass animate-fade-in" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -18,13 +26,15 @@ export default function History() {
           <h2 style={{ fontSize: '22px', margin: 0 }}>Historical Congestion Logs</h2>
         </div>
 
-        {/* Mock Search input */}
+        {/* Live Search input */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 12px' }}>
           <Search size={16} color="var(--text-muted)" style={{ marginRight: '8px' }} />
           <input 
             type="text" 
             placeholder="Search by event or sector..." 
-            style={{ background: 'transparent', border: 'none', padding: 0, fontSize: '13px', width: '200px' }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ background: 'transparent', border: 'none', padding: 0, fontSize: '13px', width: '200px', outline: 'none', color: 'var(--text-primary)' }}
           />
         </div>
       </div>
@@ -52,7 +62,7 @@ export default function History() {
         <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total Signal Adjustments</div>
           <div style={{ fontSize: '24px', fontWeight: 'bold', margin: '6px 0 2px' }}>4,890 times</div>
-          <div style={{ fontSize: '11px', color: 'var(--clr-green)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: 'var(--clr-green)' }}>
             <ArrowUpRight size={12} />
             <span>94.8% success in diversion routing</span>
           </div>
@@ -74,7 +84,7 @@ export default function History() {
             </tr>
           </thead>
           <tbody>
-            {historicalReports.map((report) => (
+            {filteredReports.map((report) => (
               <tr 
                 key={report.id} 
                 style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)', transition: 'background 0.2s' }}
@@ -95,6 +105,13 @@ export default function History() {
                 </td>
               </tr>
             ))}
+            {filteredReports.length === 0 && (
+              <tr>
+                <td colSpan="7" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No matching logs found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
