@@ -1,0 +1,7 @@
+5-FOLD CROSS-VALIDATION RESULTS
+=================================
+
+Severity Classifier (XGBoost) Accuracy: 0.9980 ± 0.0009
+Closure Classifier (RandomForest) Accuracy: 0.8855 ± 0.0076
+Duration Regressor (XGBoost) RMSE: 214.02 ± 5.99 mins
+Duration Regressor (PyTorch MLP) RMSE: 190.11 ± 18.81 mins
