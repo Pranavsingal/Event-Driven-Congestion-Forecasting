@@ -215,6 +215,98 @@ def generate_interactive_map(filters: dict) -> str:
     # Return map as HTML string
     return m._repr_html_()
 
+
+# Known corridor start/end coordinates for Bangalore road segments.
+# Used as reliable fallback since the dataset's endlatitude/endlongitude are mostly empty.
+CORRIDOR_ENDPOINTS = {
+    "hosur road":        {"start": [12.9340, 77.6120], "end": [12.8950, 77.6380]},
+    "tumkur road":       {"start": [13.0280, 77.5400], "end": [13.0700, 77.5100]},
+    "orr east 1":        {"start": [12.9360, 77.6100], "end": [12.9200, 77.6500]},
+    "orr east 2":        {"start": [12.9200, 77.6500], "end": [12.9560, 77.7010]},
+    "orr west 1":        {"start": [12.9430, 77.5250], "end": [12.9700, 77.5100]},
+    "orr north 1":       {"start": [13.0070, 77.6960], "end": [13.0350, 77.6000]},
+    "orr north 2":       {"start": [13.0350, 77.6000], "end": [13.0230, 77.5530]},
+    "bannerghata road":  {"start": [12.9380, 77.5990], "end": [12.8900, 77.5960]},
+    "old airport road":  {"start": [12.9570, 77.6500], "end": [12.9730, 77.6170]},
+    "old madras road":   {"start": [12.9730, 77.6170], "end": [13.0070, 77.6960]},
+    "bellary road 1":    {"start": [12.9980, 77.5920], "end": [13.0350, 77.5970]},
+    "bellary road 2":    {"start": [13.0350, 77.5970], "end": [13.0650, 77.5880]},
+    "cbd 1":             {"start": [12.9780, 77.5720], "end": [12.9630, 77.5840]},
+    "cbd 2":             {"start": [12.9600, 77.5980], "end": [12.9730, 77.6170]},
+    "magadi road":       {"start": [12.9720, 77.5500], "end": [12.9580, 77.5100]},
+    "mysore road":       {"start": [12.9440, 77.5250], "end": [12.9200, 77.4800]},
+    "varthur road":      {"start": [12.9560, 77.7010], "end": [12.9840, 77.7510]},
+    "hennur main road":  {"start": [13.0200, 77.6300], "end": [13.0500, 77.6400]},
+    "airport new south road": {"start": [13.0650, 77.5880], "end": [13.1100, 77.5700]},
+    "irr(thanisandra road)":  {"start": [13.0500, 77.6400], "end": [13.0700, 77.6200]},
+    "west of chord road":     {"start": [12.9900, 77.5600], "end": [13.0100, 77.5400]},
+    "non-corridor":      {"start": [12.9716, 77.5946], "end": [12.9800, 77.6050]},
+}
+
+def get_corridor_route_geometry(corridor_name: str) -> list:
+    """
+    Returns a list of coordinates [[lat, lng], ...] representing the path of the selected corridor.
+    Uses known corridor endpoint coordinates and OSRM for real road-snapped geometry.
+    Falls back to the dataset if no hardcoded endpoints are found.
+    """
+    default_coords = []
+    if not corridor_name or corridor_name == "Unknown" or corridor_name == "none":
+        return default_coords
+
+    start_lat, start_lng, end_lat, end_lng = None, None, None, None
+
+    # 1. Try hardcoded corridor endpoints first (most reliable)
+    corridor_key = str(corridor_name).lower().strip()
+    if corridor_key in CORRIDOR_ENDPOINTS:
+        ep = CORRIDOR_ENDPOINTS[corridor_key]
+        start_lat, start_lng = ep["start"]
+        end_lat, end_lng = ep["end"]
+
+    # 2. Fallback: try dataset columns
+    if start_lat is None:
+        try:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
+            match = df[df['corridor'].str.lower() == corridor_key]
+            if len(match) > 0:
+                s_lat = match['latitude'].dropna().mean()
+                s_lng = match['longitude'].dropna().mean()
+                e_lat = match['endlatitude'].dropna().mean() if 'endlatitude' in match.columns else np.nan
+                e_lng = match['endlongitude'].dropna().mean() if 'endlongitude' in match.columns else np.nan
+
+                if not (np.isnan(s_lat) or np.isnan(s_lng)):
+                    start_lat, start_lng = s_lat, s_lng
+                    if not (np.isnan(e_lat) or np.isnan(e_lng)):
+                        end_lat, end_lng = e_lat, e_lng
+                    else:
+                        # Use start + offset for a visible corridor segment
+                        end_lat = start_lat + 0.015
+                        end_lng = start_lng + 0.008
+        except Exception as e:
+            print(f"Dataset fallback failed for corridor geometry: {e}")
+
+    if start_lat is None:
+        return default_coords
+
+    # 3. Try OSRM for real road-snapped route
+    try:
+        from routing.osrm_client import get_road_route
+        route_res = get_road_route(start_lat, start_lng, end_lat, end_lng)
+        coords = route_res.get("coordinates", [])
+        if len(coords) > 1:
+            return coords
+    except Exception as e:
+        print(f"OSRM corridor route failed: {e}")
+
+    # 4. Fallback: generate a synthetic multi-point corridor line
+    mid_lat = (start_lat + end_lat) / 2
+    mid_lng = (start_lng + end_lng) / 2
+    return [
+        [start_lat, start_lng],
+        [mid_lat + 0.001, mid_lng - 0.001],
+        [mid_lat - 0.001, mid_lng + 0.001],
+        [end_lat, end_lng]
+    ]
+
 def get_map_coordinates(filters: dict) -> dict:
     """
     Returns structured geospatial coordinate lists for the frontend map renderer.
@@ -260,8 +352,23 @@ def get_map_coordinates(filters: dict) -> dict:
         from planning.diversion import get_diversions
         diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause, barricades=barricades)
         
-        for div in diversions:
+        for idx, div in enumerate(diversions):
             geom = div.get("route_geometry", [])
+            
+            # Generate fallback geometry if OSRM returned empty coordinates
+            if len(geom) < 2:
+                lat, lng = center_coords
+                # Generate distinct bypass arcs for each route using different angles
+                angle_offset = (idx * 2.2) + 0.5  # Spread routes in different directions
+                r = 0.005 + (idx * 0.002)  # Slightly larger radius for each successive route
+                import math
+                geom = [
+                    [lat - r * math.cos(angle_offset), lng - r * math.sin(angle_offset)],
+                    [lat + r * math.sin(angle_offset + 0.5), lng + r * math.cos(angle_offset + 0.5)],
+                    [lat + r * math.cos(angle_offset + 1.0), lng - r * math.sin(angle_offset + 1.0)],
+                    [lat + r * math.cos(angle_offset), lng + r * math.sin(angle_offset)]
+                ]
+            
             # Add entry/exit barricades for the route
             if len(geom) > 0:
                 # If we snapped to a barricade, don't duplicate it. Only add if not close to existing.
@@ -318,11 +425,15 @@ def get_map_coordinates(filters: dict) -> dict:
     except Exception as e:
         print(f"Error fetching heatmap in get_map_coordinates: {e}")
         
+    # 5. Selected Corridor Route geometry
+    corridor_route = get_corridor_route_geometry(corridor)
+        
     return {
         "center": center_coords,
         "barricades": barricades,
         "routes": routes_data,
-        "heatmap": heatmap
+        "heatmap": heatmap,
+        "corridorRoute": corridor_route
     }
 
 

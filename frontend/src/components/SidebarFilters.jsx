@@ -10,11 +10,62 @@ export default function SidebarFilters({ filters, setFilters }) {
     }));
   };
 
+  const handleSyncLiveTime = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentDay = now.getDay() === 0 ? 7 : now.getDay();
+    let currentTimeOfDay = 'midday';
+    if (currentHour >= 5 && currentHour < 12) currentTimeOfDay = 'morning';
+    else if (currentHour >= 12 && currentHour < 17) currentTimeOfDay = 'midday';
+    else if (currentHour >= 17 && currentHour < 21) currentTimeOfDay = 'evening';
+    else currentTimeOfDay = 'night';
+
+    setFilters(prev => ({
+      ...prev,
+      hour: currentHour,
+      minute: currentMinute,
+      day: currentDay,
+      timeOfDay: currentTimeOfDay
+    }));
+  };
+
+  const formatTime = (h, m) => {
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayHour = h % 12 === 0 ? 12 : h % 12;
+    return `${displayHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${period}`;
+  };
+
   return (
     <div className="glass sidebar-container" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', background: 'var(--card-bg)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-        <Sliders size={20} color="var(--primary)" />
-        <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--text-primary)' }}>Control Center</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Sliders size={20} color="var(--primary)" />
+          <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--text-primary)' }}>Control Center</h2>
+        </div>
+        
+        <button
+          type="button"
+          onClick={handleSyncLiveTime}
+          title="Go Live (Sync to Current Time)"
+          style={{
+            padding: '6px 12px',
+            borderRadius: '6px',
+            background: 'var(--primary)',
+            color: '#ffffff',
+            border: 'none',
+            fontSize: '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          ⏱️ Go Live
+        </button>
       </div>
 
       {/* AI Mode Toggles */}
@@ -74,18 +125,40 @@ export default function SidebarFilters({ filters, setFilters }) {
         {/* Hour Slider */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            <label htmlFor="hour">Start Hour</label>
+            <label htmlFor="hour">Start Time</label>
             <span style={{ color: 'var(--primary)', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-              {filters.hour ? filters.hour.toString().padStart(2, '0') : '12'}:00 {filters.hour >= 12 ? 'PM' : 'AM'}
+              {formatTime(filters.hour !== undefined ? filters.hour : 12, filters.minute !== undefined ? filters.minute : 0)}
             </span>
           </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>Adjust Hour</div>
           <input 
             type="range" 
             id="hour" 
             name="hour" 
             min="0" 
             max="23" 
-            value={filters.hour || 12} 
+            value={filters.hour !== undefined ? filters.hour : 12} 
+            onChange={handleChange}
+            style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--primary)' }}
+          />
+        </div>
+
+        {/* Minute Slider */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+            <label htmlFor="minute">Adjust Minute</label>
+            <span style={{ color: 'var(--primary)', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
+              {filters.minute !== undefined ? filters.minute.toString().padStart(2, '0') : '00'}m
+            </span>
+          </div>
+          <input 
+            type="range" 
+            id="minute" 
+            name="minute" 
+            min="0" 
+            max="59" 
+            step="1"
+            value={filters.minute !== undefined ? filters.minute : 0} 
             onChange={handleChange}
             style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--primary)' }}
           />
@@ -146,18 +219,33 @@ export default function SidebarFilters({ filters, setFilters }) {
           <select 
             id="corridor"
             name="corridor"
-            value={filters.corridor || 'Hwy 101 Corridor'} 
+            value={filters.corridor || 'Hosur Road'} 
             onChange={handleChange}
             style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
           >
-            <option value="Hwy 101 Corridor">Hwy 101 Corridor</option>
-            <option value="ORR East 1">ORR East 1</option>
             <option value="Hosur Road">Hosur Road</option>
-            <option value="Bannerghata Road">Bannerghata Road</option>
-            <option value="Bellary Road 1">Bellary Road 1</option>
-            <option value="Old Airport Road">Old Airport Road</option>
             <option value="Tumkur Road">Tumkur Road</option>
+            <option value="ORR East 1">ORR East 1</option>
+            <option value="ORR East 2">ORR East 2</option>
+            <option value="ORR West 1">ORR West 1</option>
+            <option value="ORR North 1">ORR North 1</option>
+            <option value="ORR North 2">ORR North 2</option>
+            <option value="Bannerghata Road">Bannerghata Road</option>
+            <option value="Old Airport Road">Old Airport Road</option>
+            <option value="Old Madras Road">Old Madras Road</option>
+            <option value="Bellary Road 1">Bellary Road 1</option>
+            <option value="Bellary Road 2">Bellary Road 2</option>
+            <option value="CBD 1">CBD 1</option>
+            <option value="CBD 2">CBD 2</option>
+            <option value="Magadi Road">Magadi Road</option>
             <option value="Mysore Road">Mysore Road</option>
+            <option value="Varthur Road">Varthur Road</option>
+            <option value="Hennur Main Road">Hennur Main Road</option>
+            <option value="Airport New South Road">Airport New South Road</option>
+            <option value="IRR(Thanisandra road)">IRR (Thanisandra Road)</option>
+            <option value="West of Chord Road">West of Chord Road</option>
+            <option value="Non-corridor">Non-Corridor Link</option>
+            <option value="Unknown">Other / General Link</option>
           </select>
         </div>
 

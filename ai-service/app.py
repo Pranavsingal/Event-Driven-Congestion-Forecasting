@@ -83,6 +83,7 @@ def predict(
     zone: str = "Unknown",
     junction: str = "Unknown",
     hour: int = 12,
+    minute: int = 0,
     day: int = 3,
     event: str = "none",
     mode: str = "predictive"
@@ -105,7 +106,7 @@ def predict(
     # Find the day difference to match the requested weekday (1=Monday, 7=Sunday)
     current_weekday = now.isoweekday()
     day_diff = day - current_weekday
-    target_date = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+    target_date = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     # Note: We can add or subtract timedelta if day_diff is non-zero, but simple date string is fine
     raw_input["start_datetime"] = target_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -184,6 +185,7 @@ def predict(
             "zone": zone,
             "junction": junction,
             "hour": hour,
+            "minute": minute,
             "day": day,
             "event": event
         }
@@ -322,6 +324,7 @@ def get_map(
     zone: str = "Unknown",
     junction: str = "Unknown",
     hour: int = 12,
+    minute: int = 0,
     day: int = 3,
     event: str = "none"
 ):
@@ -332,6 +335,7 @@ def get_map(
         "zone": zone,
         "junction": junction,
         "hour": hour,
+        "minute": minute,
         "day": day,
         "event": event
     }
@@ -349,6 +353,7 @@ def get_pdf(
     zone: str = "Unknown",
     junction: str = "Unknown",
     hour: int = 12,
+    minute: int = 0,
     day: int = 3,
     event: str = "none"
 ):
@@ -379,6 +384,7 @@ def get_pdf(
             "junction": junction,
             "veh_type": veh_type,
             "hour": hour,
+            "minute": minute,
             "day": day,
             "event": event
         }
