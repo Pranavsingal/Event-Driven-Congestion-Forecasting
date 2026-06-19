@@ -240,19 +240,35 @@ def get_map_coordinates(filters: dict) -> dict:
     route_drawn = False
     try:
         df = pd.read_csv(PROCESSED_DATA_PATH)
+        # Try matching by Corridor first
         route_matches = df[(df['corridor'].str.lower() == str(corridor).lower()) & (df['route_path'].notna())]
+        
+        # Fallback to matching by Junction
+        if len(route_matches) == 0 and junction and junction != "Unknown" and junction != "none":
+            route_matches = df[(df['junction'].str.lower() == str(junction).lower()) & (df['route_path'].notna())]
+            
+        # Fallback to matching by Zone
+        if len(route_matches) == 0 and zone and zone != "Unknown" and zone != "none":
+            route_matches = df[(df['zone'].str.lower() == str(zone).lower()) & (df['route_path'].notna())]
+            
+        # Fallback to matching by Event Cause
         if len(route_matches) == 0:
             route_matches = df[(df['event_cause'].str.lower() == str(cause).lower()) & (df['route_path'].notna())]
             
-        for _, row in route_matches.head(3).iterrows():
+        # Iterate over matches and find the first geographically relevant route path
+        for _, row in route_matches.iterrows():
             path_str = row['route_path']
             if path_str and path_str != "[]" and isinstance(path_str, str):
                 try:
                     coords_list = json.loads(path_str)
                     if isinstance(coords_list, list) and len(coords_list) > 1:
-                        route_coords = coords_list
-                        route_drawn = True
-                        break
+                        # Geographically relevant check: first point must be within ~8km of center_coords
+                        first_pt = coords_list[0]
+                        dist = np.sqrt((first_pt[0] - center_coords[0])**2 + (first_pt[1] - center_coords[1])**2)
+                        if dist < 0.08:
+                            route_coords = coords_list
+                            route_drawn = True
+                            break
                 except Exception:
                     pass
     except Exception as e:

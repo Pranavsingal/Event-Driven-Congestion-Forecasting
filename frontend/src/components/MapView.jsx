@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Compass, ArrowUpRight } from 'lucide-react';
+import { Compass, ArrowUpRight, Navigation } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -7,10 +7,13 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [mapType, setMapType] = useState('gis'); // 'svg' or 'gis'
+  const [searchQuery, setSearchQuery] = useState('');
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layersGroupRef = useRef(null);
+  const userMarkerRef = useRef(null);
+  const searchMarkerRef = useRef(null);
 
   // Map sector ID to color styles matching traffic standards
   const getSectorStyles = (congestion) => {
@@ -38,6 +41,131 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
       x: e.clientX - rect.left + 15,
       y: e.clientY - rect.top + 15
     });
+  };
+
+  const handleLocate = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const userCenter = [latitude, longitude];
+          const map = mapInstanceRef.current;
+          if (map) {
+            map.flyTo(userCenter, 15);
+            
+            if (userMarkerRef.current) {
+              userMarkerRef.current.remove();
+            }
+            
+            const userIcon = L.divIcon({
+              className: 'custom-user-marker',
+              html: `<div style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: rgba(59, 130, 246, 0.25);
+                border: 2px solid #3b82f6;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: userPulse 2s infinite;
+              "><div style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 8px #3b82f6;"></div></div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            });
+            
+            userMarkerRef.current = L.marker(userCenter, { icon: userIcon })
+              .bindPopup('<div style="font-family: \'Public Sans\', sans-serif; font-size: 11px; font-weight: bold; color: #1f2937;">Your Current Location</div>')
+              .addTo(map)
+              .openPopup();
+          }
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Could not retrieve your location. Make sure location permissions are enabled.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
+  };
+
+  const addSearchMarker = (coords, label) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.remove();
+    }
+    
+    const searchIcon = L.divIcon({
+      className: 'custom-search-marker',
+      html: `<div style="
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(16, 185, 129, 0.25);
+        border: 2px solid #10b981;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      "><div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></div></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+    
+    searchMarkerRef.current = L.marker(coords, { icon: searchIcon })
+      .bindPopup(`<div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;"><b>Search Result:</b><br/>${label}</div>`)
+      .addTo(map)
+      .openPopup();
+  };
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    
+    const query = searchQuery.trim().toLowerCase();
+    const latLngMatch = query.match(/^([-+]?\d+\.\d+),\s*([-+]?\d+\.\d+)$/);
+    const map = mapInstanceRef.current;
+    if (map) {
+      if (latLngMatch) {
+        const lat = parseFloat(latLngMatch[1]);
+        const lng = parseFloat(latLngMatch[2]);
+        map.flyTo([lat, lng], 15);
+        addSearchMarker([lat, lng], `Coordinates: ${lat}, ${lng}`);
+        return;
+      }
+      
+      const matchedSector = sectors.find(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
+      if (matchedSector) {
+        let coords = [12.9716, 77.5946];
+        if (matchedSector.id === 'uptown') coords = [13.0180, 77.5794];
+        else if (matchedSector.id === 'westside') coords = [12.9449, 77.4949];
+        else if (matchedSector.id === 'downtown') coords = [12.9731, 77.6174];
+        else if (matchedSector.id === 'highway') coords = [12.9283, 77.6691];
+        
+        map.flyTo(coords, 15);
+        addSearchMarker(coords, `Sector: ${matchedSector.name}`);
+        return;
+      }
+      
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const firstResult = data[0];
+            const lat = parseFloat(firstResult.lat);
+            const lon = parseFloat(firstResult.lon);
+            map.flyTo([lat, lon], 15);
+            addSearchMarker([lat, lon], firstResult.display_name);
+          } else {
+            alert(`Location "${searchQuery}" not found.`);
+          }
+        })
+        .catch(err => {
+          console.error("Geocoding failed:", err);
+          alert("Error searching for location.");
+        });
+    }
   };
 
   // Initialize Map
@@ -74,6 +202,16 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
     if (!map || !layersGroup) return;
 
     layersGroup.clearLayers();
+
+    // Clear search and user markers on filter/data changes
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.remove();
+      searchMarkerRef.current = null;
+    }
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
+    }
 
     if (!mapData) return;
 
@@ -202,7 +340,20 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
           50% { transform: scale(1.15); opacity: 1; }
           100% { transform: scale(0.95); opacity: 0.8; }
         }
+        @keyframes userPulse {
+          0% { transform: scale(0.9); opacity: 0.8; }
+          50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); }
+          100% { transform: scale(0.9); opacity: 0.8; }
+        }
         .custom-incident-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .custom-user-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .custom-search-marker {
           background: transparent !important;
           border: none !important;
         }
@@ -281,6 +432,76 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
         }}
       >
         <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+
+        {/* Floating Search Controls */}
+        <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 1000, display: 'flex', gap: '6px' }}>
+          <input 
+            type="text" 
+            placeholder="Search location or coordinates..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            style={{
+              width: '200px',
+              padding: '8px 12px',
+              fontSize: '12px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-color)',
+              background: 'rgba(15, 23, 42, 0.85)',
+              color: '#fff',
+              backdropFilter: 'blur(6px)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          />
+          <button 
+            onClick={handleSearch}
+            style={{
+              padding: '8px 14px',
+              fontSize: '12px',
+              borderRadius: '6px',
+              background: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '700',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = 'var(--primary-light)'}
+            onMouseOut={(e) => e.target.style.background = 'var(--primary)'}
+          >
+            Search
+          </button>
+        </div>
+
+        {/* Floating Geolocation Button */}
+        <button
+          onClick={handleLocate}
+          title="Locate Me"
+          style={{
+            position: 'absolute',
+            bottom: '16px',
+            right: '16px',
+            zIndex: 1000,
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            background: 'rgba(15, 23, 42, 0.85)',
+            border: '1px solid var(--border-color)',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+            boxShadow: 'var(--shadow-md)',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+        >
+          <Navigation size={16} />
+        </button>
       </div>
 
       {mapType === 'svg' && (
