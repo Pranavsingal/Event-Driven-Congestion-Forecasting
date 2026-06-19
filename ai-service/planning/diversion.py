@@ -23,7 +23,7 @@ def score_route(alt_route: dict, is_peak: bool, cause: str) -> float:
     score = (distance_penalty + congestion_history + peak_penalty) * cause_multiplier
     return round(score, 1)
 
-def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion") -> list:
+def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion", barricades: list = None) -> list:
     """
     For any given junction, scores and ranks the top candidate diversion routes.
     Returns a list of alternate routes with distance, scored ETA, and justification.
@@ -62,7 +62,22 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
         route_geometry = []
         
         if get_road_route and "waypoints" in alt and len(alt["waypoints"]) >= 2:
-            pts = alt["waypoints"]
+            pts = list(alt["waypoints"])
+            
+            # Snap start to nearest barricade if available
+            if barricades:
+                orig_start = pts[0]
+                closest_barricade = None
+                min_dist = float('inf')
+                for b in barricades:
+                    b_coord = b.get("coords") if isinstance(b, dict) else b
+                    dist = (b_coord[0] - orig_start[0])**2 + (b_coord[1] - orig_start[1])**2
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_barricade = b_coord
+                if closest_barricade:
+                    pts[0] = closest_barricade
+
             route_res = get_road_route(pts[0][0], pts[0][1], pts[-1][0], pts[-1][1], via_points=pts[1:-1])
             route_geometry = route_res.get("coordinates", [])
             # optionally override eta and distance with actuals

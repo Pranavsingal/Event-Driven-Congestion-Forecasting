@@ -21,8 +21,19 @@ def get_location_coordinates(junction_name=None, zone_name=None, corridor_name=N
         print(f"Error loading dataset in map_generator: {e}")
         return default_coords
 
-    # Try Junction lookup first
+    # Try Junction lookup from DB first for precise coordinates
     if junction_name and junction_name != "Unknown" and junction_name != "none":
+        try:
+            from planning.junction_db import JUNCTION_DATABASE
+            
+            # case-insensitive search
+            for k, v in JUNCTION_DATABASE.items():
+                if k.lower() == str(junction_name).lower():
+                    return [v["latitude"], v["longitude"]]
+        except ImportError:
+            pass
+
+        # Fallback to historical data
         match = df[df['junction'].str.lower() == str(junction_name).lower()]
         if len(match) > 0:
             lat = match['latitude'].dropna().mean()
@@ -247,13 +258,26 @@ def get_map_coordinates(filters: dict) -> dict:
     routes_data = []
     try:
         from planning.diversion import get_diversions
-        diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause)
+        diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause, barricades=barricades)
         
         for div in diversions:
             geom = div.get("route_geometry", [])
             # Add entry/exit barricades for the route
             if len(geom) > 0:
-                barricades.append({"coords": geom[0], "type": "entry", "label": f"Entry to {div['route_name']}"})
+                # If we snapped to a barricade, don't duplicate it. Only add if not close to existing.
+                start_pt = geom[0]
+                is_dup = False
+                for b in barricades:
+                    if b.get("type") == "road_block" and abs(b["coords"][0]-start_pt[0]) < 0.0001 and abs(b["coords"][1]-start_pt[1]) < 0.0001:
+                        # Convert this road block to an entry point
+                        b["type"] = "entry"
+                        b["label"] = f"Entry to {div['route_name']}"
+                        is_dup = True
+                        break
+                        
+                if not is_dup:
+                    barricades.append({"coords": start_pt, "type": "entry", "label": f"Entry to {div['route_name']}"})
+                    
                 barricades.append({"coords": geom[-1], "type": "exit", "label": f"Exit from {div['route_name']}"})
                 
             routes_data.append({

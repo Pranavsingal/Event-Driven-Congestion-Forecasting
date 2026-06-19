@@ -10,17 +10,17 @@ JUNCTION_DATABASE = {
             {
                 "route": "HSR Layout 14th Main Bypass", 
                 "distance_km": 3.2, "base_time_mins": 10, "historical_congestion_factor": 1.2,
-                "waypoints": [[12.9176, 77.6244], [12.9140, 77.6320], [12.9110, 77.6400]]
+                "waypoints": [[12.9215, 77.6244], [12.9140, 77.6320], [12.9110, 77.6400]]
             },
             {
                 "route": "BTM Layout Ring Road Link", 
                 "distance_km": 4.1, "base_time_mins": 12, "historical_congestion_factor": 1.5,
-                "waypoints": [[12.9176, 77.6244], [12.9165, 77.6105], [12.9130, 77.6050]]
+                "waypoints": [[12.9176, 77.6200], [12.9165, 77.6105], [12.9130, 77.6050]]
             },
             {
                 "route": "Madiwala Underpass Route", 
                 "distance_km": 2.8, "base_time_mins": 8, "historical_congestion_factor": 1.8,
-                "waypoints": [[12.9176, 77.6244], [12.9220, 77.6200], [12.9280, 77.6180]]
+                "waypoints": [[12.9135, 77.6244], [12.9220, 77.6200], [12.9280, 77.6180]]
             }
         ]
     },

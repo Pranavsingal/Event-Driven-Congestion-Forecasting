@@ -61,6 +61,8 @@ def get_nearest_road_point(lat, lng):
     Snaps a coordinate to the nearest actual road point using OSRM.
     Returns [lat, lng]
     """
+    import time
+    time.sleep(0.3) # Avoid OSRM public server rate limits
     url = f"{OSRM_BASE_URL}/nearest/v1/driving/{lng},{lat}?number=1"
     
     try:
