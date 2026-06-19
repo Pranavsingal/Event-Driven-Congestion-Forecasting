@@ -45,11 +45,30 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
             junction = JUNCTION_DATABASE["Unknown"]
             
     scored_alternatives = []
+    
+    # Try importing osrm_client
+    try:
+        from routing.osrm_client import get_road_route
+    except ImportError:
+        get_road_route = None
+
     for idx, alt in enumerate(junction["alternatives"]):
         score = score_route(alt, is_peak, cause)
         
         # Calculate dynamic ETA in minutes (based on score, rounded)
         eta = max(int(score / 1.5), alt["base_time_mins"] + (3 if is_peak else 0))
+        dist_km = alt["distance_km"]
+        
+        route_geometry = []
+        
+        if get_road_route and "waypoints" in alt and len(alt["waypoints"]) >= 2:
+            pts = alt["waypoints"]
+            route_res = get_road_route(pts[0][0], pts[0][1], pts[-1][0], pts[-1][1], via_points=pts[1:-1])
+            route_geometry = route_res.get("coordinates", [])
+            # optionally override eta and distance with actuals
+            if route_res.get("distance_km") > 0:
+                dist_km = round(route_res["distance_km"], 1)
+                eta = int(route_res["duration_mins"])
         
         # Formulate a structured reason
         if idx == 0:
@@ -62,11 +81,12 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
         scored_alternatives.append({
             "rank": idx + 1,
             "route_name": alt["route"],
-            "distance_km": alt["distance_km"],
+            "distance_km": dist_km,
             "base_time_mins": alt["base_time_mins"],
             "eta_mins": eta,
             "suitability_score": score,
-            "reason": reason
+            "reason": reason,
+            "route_geometry": route_geometry
         })
         
     # Sort alternatives by suitability score (ascending - lower score is better)

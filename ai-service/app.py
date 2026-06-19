@@ -11,7 +11,8 @@ import tempfile
 # Ensure the root of the project is in python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from planning.planner import generate_plan, extract_features, severity_model, closure_model, label_encoders
+from planning.planner import generate_plan, extract_features
+from model_registry import ModelRegistry
 from planning.map_generator import generate_interactive_map, get_map_coordinates
 from planning.diversion import get_diversions
 from planning.pdf_generator import generate_field_action_pdf
@@ -126,19 +127,20 @@ def predict(
         
         X = extract_features(raw_input)
         
+        registry = ModelRegistry.get_instance()
         # Calculate severity probability if possible
-        if severity_model is not None:
+        if registry.severity_model is not None:
             try:
-                probs = severity_model.predict_proba(X)[0]
-                pred_idx = severity_model.predict(X)[0]
+                probs = registry.severity_model.predict_proba(X)[0]
+                pred_idx = registry.severity_model.predict(X)[0]
                 severity_confidence = round(float(probs[pred_idx]) * 100, 1)
             except Exception as e:
                 print(f"Error predicting severity confidence: {e}")
                 
         # Calculate closure probability if possible
-        if closure_model is not None:
+        if registry.closure_model is not None:
             try:
-                probs = closure_model.predict_proba(X)[0]
+                probs = registry.closure_model.predict_proba(X)[0]
                 # closure_model classes are likely [0, 1], so prob of True is probs[1]
                 # Let's inspect the model classes if they exist, else default to index 1 if length is 2
                 if len(probs) > 1:
@@ -212,6 +214,105 @@ def predict(
             "success": False,
             "error": str(e)
         }
+
+from pydantic import BaseModel
+from typing import Optional
+import csv
+import threading
+
+class FeedbackPayload(BaseModel):
+    incidentId: str
+    event_cause: str
+    veh_type: str
+    corridor: str
+    zone: str
+    junction: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    actualDurationMins: float
+    actualSeverity: str
+    actualClosure: bool
+    notes: Optional[str] = ""
+
+@app.post("/feedback")
+def submit_feedback(payload: FeedbackPayload):
+    try:
+        feedback_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'feedback', 'feedback_log.csv')
+        
+        # Calculate some missing fields needed for training based on current time
+        # In a real system, you'd extract these from actual start_datetime
+        dt = datetime.now()
+        start_hour = dt.hour
+        start_weekday = dt.weekday()
+        start_month = dt.month
+        start_day_of_year = dt.dayofyear
+        is_peak_hour = 1 if (7 <= start_hour <= 10) or (17 <= start_hour <= 20) else 0
+        
+        # Determine if we should trigger retraining
+        # First check how many lines currently exist
+        line_count = 0
+        if os.path.exists(feedback_file):
+            with open(feedback_file, 'r') as f:
+                line_count = sum(1 for line in f) - 1 # subtract header
+                
+        # Append to CSV
+        with open(feedback_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                payload.incidentId, "feedback_event", payload.latitude, payload.longitude,
+                None, None, "Unknown", "Unknown", payload.event_cause, int(payload.actualClosure),
+                dt.isoformat() + "Z", None, "resolved", True, dt.isoformat() + "Z", None, None,
+                payload.notes, payload.veh_type, None, payload.corridor, payload.actualSeverity,
+                None, None, None, dt.isoformat() + "Z", None, None, None, None, None, None, None,
+                None, None, None, None, None, None, None, None, None, None, None, payload.zone,
+                payload.junction, start_hour, start_weekday, start_month, start_day_of_year,
+                payload.actualDurationMins, 0, 0, 0, 0, 0, 0, is_peak_hour, 0
+            ])
+            
+        line_count += 1
+        
+        # Auto-retrain every 10 feedbacks
+        retraining_triggered = False
+        if line_count > 0 and line_count % 10 == 0:
+            retraining_triggered = True
+            # Fire and forget retraining
+            try:
+                from retrain import retrain_models
+                threading.Thread(target=retrain_models).start()
+            except ImportError:
+                print("Retrain module not found")
+                
+        return {
+            "success": True,
+            "feedbackId": payload.incidentId,
+            "totalFeedbackCount": line_count,
+            "retrainingTriggered": retraining_triggered
+        }
+    except Exception as e:
+        print(f"Error saving feedback: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/retrain")
+def trigger_retrain():
+    try:
+        from retrain import retrain_models
+        metrics = retrain_models()
+        return {
+            "success": True,
+            "metrics": metrics,
+            "message": "Retraining completed successfully and models reloaded."
+        }
+    except Exception as e:
+        print(f"Error during manual retrain: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.get("/model-status")
+def get_model_status():
+    try:
+        from retrain import get_status
+        return get_status()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @app.get("/map", response_class=HTMLResponse)
 def get_map(

@@ -1,22 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Compass, ArrowUpRight, Navigation } from 'lucide-react';
+import { Compass, ArrowUpRight } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export default function MapView({ sectors, incidents, filters, mapData, diversions }) {
+export default function MapView({ sectors, incidents, filters, mapData }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [mapType, setMapType] = useState('gis'); // 'svg' or 'gis'
-  const [searchQuery, setSearchQuery] = useState('');
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layersGroupRef = useRef(null);
-  const userMarkerRef = useRef(null);
-  const searchMarkerRef = useRef(null);
-  const dispatchMarkerRef = useRef(null);
-  const dispatchTrailRef = useRef(null);
-  const animatedIncidentsRef = useRef(new Set());
 
   // Map sector ID to color styles matching traffic standards
   const getSectorStyles = (congestion) => {
@@ -46,131 +40,6 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
     });
   };
 
-  const handleLocate = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const userCenter = [latitude, longitude];
-          const map = mapInstanceRef.current;
-          if (map) {
-            map.flyTo(userCenter, 15);
-            
-            if (userMarkerRef.current) {
-              userMarkerRef.current.remove();
-            }
-            
-            const userIcon = L.divIcon({
-              className: 'custom-user-marker',
-              html: `<div style="
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                background: rgba(59, 130, 246, 0.25);
-                border: 2px solid #3b82f6;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                animation: userPulse 2s infinite;
-              "><div style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 8px #3b82f6;"></div></div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            });
-            
-            userMarkerRef.current = L.marker(userCenter, { icon: userIcon })
-              .bindPopup('<div style="font-family: \'Public Sans\', sans-serif; font-size: 11px; font-weight: bold; color: #1f2937;">Your Current Location</div>')
-              .addTo(map)
-              .openPopup();
-          }
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          alert("Could not retrieve your location. Make sure location permissions are enabled.");
-        }
-      );
-    } else {
-      alert("Geolocation is not supported by your browser.");
-    }
-  };
-
-  const addSearchMarker = (coords, label) => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    
-    if (searchMarkerRef.current) {
-      searchMarkerRef.current.remove();
-    }
-    
-    const searchIcon = L.divIcon({
-      className: 'custom-search-marker',
-      html: `<div style="
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: rgba(16, 185, 129, 0.25);
-        border: 2px solid #10b981;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      "><div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></div></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-    
-    searchMarkerRef.current = L.marker(coords, { icon: searchIcon })
-      .bindPopup(`<div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;"><b>Search Result:</b><br/>${label}</div>`)
-      .addTo(map)
-      .openPopup();
-  };
-
-  const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    
-    const query = searchQuery.trim().toLowerCase();
-    const latLngMatch = query.match(/^([-+]?\d+\.\d+),\s*([-+]?\d+\.\d+)$/);
-    const map = mapInstanceRef.current;
-    if (map) {
-      if (latLngMatch) {
-        const lat = parseFloat(latLngMatch[1]);
-        const lng = parseFloat(latLngMatch[2]);
-        map.flyTo([lat, lng], 15);
-        addSearchMarker([lat, lng], `Coordinates: ${lat}, ${lng}`);
-        return;
-      }
-      
-      const matchedSector = sectors.find(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
-      if (matchedSector) {
-        let coords = [12.9716, 77.5946];
-        if (matchedSector.id === 'uptown') coords = [13.0180, 77.5794];
-        else if (matchedSector.id === 'westside') coords = [12.9449, 77.4949];
-        else if (matchedSector.id === 'downtown') coords = [12.9731, 77.6174];
-        else if (matchedSector.id === 'highway') coords = [12.9283, 77.6691];
-        
-        map.flyTo(coords, 15);
-        addSearchMarker(coords, `Sector: ${matchedSector.name}`);
-        return;
-      }
-      
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.length > 0) {
-            const firstResult = data[0];
-            const lat = parseFloat(firstResult.lat);
-            const lon = parseFloat(firstResult.lon);
-            map.flyTo([lat, lon], 15);
-            addSearchMarker([lat, lon], firstResult.display_name);
-          } else {
-            alert(`Location "${searchQuery}" not found.`);
-          }
-        })
-        .catch(err => {
-          console.error("Geocoding failed:", err);
-          alert("Error searching for location.");
-        });
-    }
-  };
-
   // Initialize Map
   useEffect(() => {
     if (!mapInstanceRef.current && mapRef.current) {
@@ -185,72 +54,6 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         maxZoom: 20
       }).addTo(map);
-
-      // Drop a pin anywhere on the map on click with reverse geocoding
-      map.on('click', (e) => {
-        const { lat, lng } = e.latlng;
-        
-        if (searchMarkerRef.current) {
-          searchMarkerRef.current.remove();
-        }
-        
-        const pinIcon = L.divIcon({
-          className: 'custom-pin-marker',
-          html: `<div style="
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: rgba(139, 92, 246, 0.25);
-            border: 2px solid #8b5cf6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          "><div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; box-shadow: 0 0 8px #8b5cf6;"></div></div>`,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-        
-        const tempMarker = L.marker([lat, lng], { icon: pinIcon })
-          .bindPopup(`
-            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 140px;">
-              <b>Loading address details...</b><br/>
-              Latitude: ${lat.toFixed(6)}<br/>
-              Longitude: ${lng.toFixed(6)}
-            </div>
-          `)
-          .addTo(map);
-          
-        tempMarker.openPopup();
-        searchMarkerRef.current = tempMarker;
-        
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-          .then(res => res.json())
-          .then(data => {
-            if (searchMarkerRef.current === tempMarker) {
-              const addressName = data.display_name || "Unnamed Road";
-              tempMarker.setPopupContent(`
-                <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; max-width: 200px;">
-                  <b style="color: #8b5cf6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Pinned Location</b>
-                  <div style="line-height: 1.4;">
-                    <b>Address:</b> ${addressName}<br/>
-                    <b>Coords:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}
-                  </div>
-                </div>
-              `);
-            }
-          })
-          .catch(err => {
-            console.error("Reverse geocoding failed:", err);
-            if (searchMarkerRef.current === tempMarker) {
-              tempMarker.setPopupContent(`
-                <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px;">
-                  <b style="color: #8b5cf6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Pinned Location</b>
-                  <b>Coords:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}
-                </div>
-              `);
-            }
-          });
-      });
 
       layersGroupRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
@@ -271,16 +74,6 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
     if (!map || !layersGroup) return;
 
     layersGroup.clearLayers();
-
-    // Clear search and user markers on filter/data changes
-    if (searchMarkerRef.current) {
-      searchMarkerRef.current.remove();
-      searchMarkerRef.current = null;
-    }
-    if (userMarkerRef.current) {
-      userMarkerRef.current.remove();
-      userMarkerRef.current = null;
-    }
 
     if (!mapData) return;
 
@@ -334,17 +127,50 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
     // 2. Add Barricade Points
     if (mapData.barricades) {
       mapData.barricades.forEach((barricade, index) => {
+        let coords, type, label;
+        
+        // Handle both old array format and new object format
+        if (Array.isArray(barricade)) {
+          coords = barricade;
+          type = 'road_block';
+          label = 'Lanes Closed: Direct traffic to alternate side.';
+        } else {
+          coords = barricade.coords;
+          type = barricade.type;
+          label = barricade.label;
+        }
+
+        if (!coords || coords.length < 2) return;
+
+        let bColor = '#d97706'; // amber
+        let bFill = '#f59e0b';
+        let popupTitle = `Barricade Point #${index + 1}`;
+        
+        if (type === 'entry') {
+          bColor = '#00bcd4';
+          bFill = '#00bcd4';
+          popupTitle = 'Diversion Entry';
+        } else if (type === 'exit') {
+          bColor = '#2e7d32';
+          bFill = '#4caf50';
+          popupTitle = 'Diversion Exit';
+        } else if (type === 'road_block') {
+          bColor = '#d32f2f';
+          bFill = '#ef5350';
+          popupTitle = 'Road Block';
+        }
+
         const barricadePopup = `
           <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
-            <b style="color: #ed6c02; font-size: 12px;">Barricade Point #${index + 1}</b><br/>
-            Lanes Closed: Direct traffic to alternate side.
+            <b style="color: ${bColor}; font-size: 12px;">${popupTitle}</b><br/>
+            ${label}
           </div>
         `;
 
-        L.circleMarker(barricade, {
-          radius: 8,
-          color: '#d97706',
-          fillColor: '#f59e0b',
+        L.circleMarker(coords, {
+          radius: type === 'road_block' ? 8 : 6,
+          color: bColor,
+          fillColor: bFill,
           fillOpacity: 0.8,
           weight: 2
         })
@@ -353,64 +179,62 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
       });
     }
 
-    // 3. Add Suggested Diversion Routes (with animated flow lines & detour details)
-    const drawRoute = (coords, rank) => {
-      const detour = (diversions && diversions.length > 0) ? diversions.find(d => d.rank === rank) : null;
-      
-      let routeColor = '#00bcd4'; // Rank 1: Cyan (default)
-      if (rank === 2) routeColor = '#2e7d32'; // Rank 2: Green
-      else if (rank === 3) routeColor = '#f59e0b'; // Rank 3: Amber
-      
-      const routeName = detour ? detour.route_name : `AI Detour Route #${rank}`;
-      const routeETA = detour ? `${detour.eta_mins} mins` : (rank === 1 ? '10 mins' : rank === 2 ? '12 mins' : '15 mins');
-      const routeDistance = detour ? `${detour.distance_km} km` : (rank === 1 ? '3.2 km' : rank === 2 ? '4.1 km' : '4.7 km');
-      const routeDetourTime = detour ? detour.travel_time_detour : (rank === 1 ? '+2 mins detour' : rank === 2 ? '+4 mins detour' : '+6 mins detour');
-      const routeOffload = detour ? detour.flow_offload_efficiency : (rank === 1 ? '92%' : rank === 2 ? '78%' : '63%');
-      const routeReason = detour ? detour.reason : (rank === 1 ? 'Lowest congestion history with standard lane width.' : rank === 2 ? 'Slightly longer bypass but avoids merges.' : 'Secondary backup artery.');
+    // 3. Add Suggested Diversion Routes
+    if (mapData.routes && mapData.routes.length > 0) {
+      mapData.routes.forEach(routeObj => {
+        if (!routeObj.geometry || routeObj.geometry.length === 0) return;
+        
+        let routeColor = '#00bcd4'; // Cyan default
+        if (routeObj.rank === 1) routeColor = '#00bcd4'; // Cyan (Primary)
+        else if (routeObj.rank === 2) routeColor = '#2e7d32'; // Green (Secondary)
+        else routeColor = '#f59e0b'; // Amber (Backup)
+        
+        // Slightly lower opacity and weight for lower ranked routes
+        const routeWeight = routeObj.rank === 1 ? 5 : 4;
+        const routeOpacity = routeObj.rank === 1 ? 0.85 : 0.65;
+        const dashArray = routeObj.rank > 1 ? '10, 5' : null;
+
+        const routePopup = `
+          <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
+            <b style="color: ${routeColor}; font-size: 12px;">${routeObj.name}</b><br/>
+            Rank: ${routeObj.rank}<br/>
+            Distance: ${routeObj.distance_km} km<br/>
+            ETA: ${routeObj.eta_mins} mins
+          </div>
+        `;
+
+        L.polyline(routeObj.geometry, {
+          color: routeColor,
+          weight: routeWeight,
+          opacity: routeOpacity,
+          dashArray: dashArray,
+          lineJoin: 'round'
+        })
+          .bindPopup(routePopup)
+          .addTo(layersGroup);
+      });
+    } else if (mapData.route && mapData.route.length > 0) {
+      // Fallback for legacy single route
+      const isCustomRoute = mapData.route.length === 4;
+      const routeColor = isCustomRoute ? '#2e7d32' : '#00bcd4'; // Green or Cyan
+      const routeName = isCustomRoute ? 'Default Suggested Diversion Route' : 'AI Suggested Diversion Path';
+      const popupText = isCustomRoute ? 'Standard Bypass Loop: Flow offloaded by 12%.' : 'Diversion Route: Flow offloaded by 15%.';
 
       const routePopup = `
-        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 180px;">
-          <b style="color: ${routeColor}; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">${routeName}</b>
-          <div style="line-height: 1.5; margin-bottom: 4px;">
-            <b>Distance:</b> ${routeDistance}<br/>
-            <b>Travel Time:</b> <span style="color: ${routeColor}; font-weight: 700;">${routeDetourTime}</span> (ETA: ${routeETA})<br/>
-            <b>Offload Efficiency:</b> <span style="font-weight: 700; color: #10b981;">${routeOffload}</span><br/>
-            <b>Reason:</b> ${routeReason}
-          </div>
+        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
+          <b style="color: ${routeColor}; font-size: 12px;">${routeName}</b><br/>
+          ${popupText}
         </div>
       `;
 
-      const speedClass = `animated-flow-route-rank-${rank}`;
-      const polyline = L.polyline(coords, {
+      L.polyline(mapData.route, {
         color: routeColor,
-        weight: rank === 1 ? 6 : 4,
-        opacity: rank === 1 ? 0.9 : 0.65,
-        lineJoin: 'round',
-        className: `animated-flow-route ${speedClass}`
+        weight: 5,
+        opacity: 0.85,
+        lineJoin: 'round'
       })
         .bindPopup(routePopup)
         .addTo(layersGroup);
-
-      // Bind interactive mouse hover events to display popups dynamically on hover
-      polyline.on('mouseover', function (e) {
-        const layer = e.target;
-        layer.setStyle({ opacity: 1.0, weight: rank === 1 ? 8 : 6 });
-        this.openPopup(e.latlng);
-      });
-      
-      polyline.on('mouseout', function (e) {
-        const layer = e.target;
-        layer.setStyle({ opacity: rank === 1 ? 0.9 : 0.65, weight: rank === 1 ? 6 : 4 });
-        this.closePopup();
-      });
-    };
-
-    if (mapData.routes && mapData.routes.length > 0) {
-      mapData.routes.forEach(routeObj => {
-        drawRoute(routeObj.coords, routeObj.rank);
-      });
-    } else if (mapData.route && mapData.route.length > 0) {
-      drawRoute(mapData.route, 1);
     }
 
     // 4. Add Historical Heatmap points
@@ -437,171 +261,6 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
     }
   }, [mapType]);
 
-  // Watch for dispatched incidents and trigger vehicle tracking animations
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapData) return;
-
-    // Find any incident with status === 'dispatched'
-    const activeDispatchInc = incidents.find(i => i.status === 'dispatched');
-    if (!activeDispatchInc) {
-      // If no active dispatch incident, clear existing tracking vehicle/trail
-      if (dispatchMarkerRef.current) {
-        dispatchMarkerRef.current.remove();
-        dispatchMarkerRef.current = null;
-      }
-      if (dispatchTrailRef.current) {
-        dispatchTrailRef.current.remove();
-        dispatchTrailRef.current = null;
-      }
-      return;
-    }
-
-    const incId = activeDispatchInc.id;
-    // Check if we have already animated this dispatch incident
-    if (animatedIncidentsRef.current.has(incId)) {
-      return;
-    }
-
-    // Mark as animated so we don't restart it
-    animatedIncidentsRef.current.add(incId);
-
-    // Get the route coords to animate along
-    let routePoints = [];
-    if (mapData.routes && mapData.routes.length > 0) {
-      routePoints = mapData.routes[0].coords;
-    } else if (mapData.route && mapData.route.length > 0) {
-      routePoints = mapData.route;
-    }
-
-    if (routePoints.length === 0) {
-      const lat = mapData.center ? mapData.center[0] : 12.9716;
-      const lng = mapData.center ? mapData.center[1] : 77.5946;
-      routePoints = [
-        [lat - 0.015, lng - 0.015],
-        [lat, lng]
-      ];
-    }
-
-    // Build interpolated path steps (approx 120 points total for a smooth 3-second animation)
-    const stepsPerSegment = Math.max(10, Math.round(120 / (routePoints.length - 1)));
-    const path = [];
-    for (let i = 0; i < routePoints.length - 1; i++) {
-      const start = routePoints[i];
-      const end = routePoints[i + 1];
-      for (let step = 0; step < stepsPerSegment; step++) {
-        const t = step / stepsPerSegment;
-        const lat = start[0] + (end[0] - start[0]) * t;
-        const lng = start[1] + (end[1] - start[1]) * t;
-        path.push([lat, lng]);
-      }
-    }
-    path.push(routePoints[routePoints.length - 1]);
-
-    // Clean up previous animations if any
-    if (dispatchMarkerRef.current) {
-      dispatchMarkerRef.current.remove();
-    }
-    if (dispatchTrailRef.current) {
-      dispatchTrailRef.current.remove();
-    }
-
-    // Create the vehicle marker
-    const vehicleIcon = L.divIcon({
-      className: 'custom-vehicle-marker',
-      html: `<div style="
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: #3b82f6;
-        border: 2px solid #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 10px #3b82f6;
-        animation: vehiclePulse 1s infinite alternate;
-      ">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="3" width="15" height="13" rx="2" ry="2"></rect>
-          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-          <circle cx="5.5" cy="18.5" r="2.5"></circle>
-          <circle cx="18.5" cy="18.5" r="2.5"></circle>
-        </svg>
-      </div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 15]
-    });
-
-    const startPos = path[0];
-    const dispatchMarker = L.marker(startPos, { icon: vehicleIcon })
-      .bindPopup(`
-        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 130px;">
-          <b style="color: #3b82f6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Rescue Dispatch</b>
-          <b>Unit:</b> Express Tow Truck #14<br/>
-          <b>Status:</b> En Route to ${activeDispatchInc.title}...
-        </div>
-      `)
-      .addTo(map);
-
-    dispatchMarker.openPopup();
-    dispatchMarkerRef.current = dispatchMarker;
-
-    // Create the trail polyline
-    const trail = L.polyline([startPos], {
-      color: '#3b82f6',
-      weight: 3,
-      opacity: 0.6,
-      dashArray: '5, 5'
-    }).addTo(map);
-    dispatchTrailRef.current = trail;
-
-    let currentStep = 0;
-    let animationFrameId = null;
-    const trailCoords = [];
-
-    const animate = () => {
-      if (currentStep >= path.length) {
-        if (dispatchMarkerRef.current) {
-          dispatchMarkerRef.current.setLatLng(path[path.length - 1]);
-          dispatchMarkerRef.current.bindPopup(`
-            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 6px; min-width: 180px;">
-              <b style="color: #10b981; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Unit Arrived</b>
-              <div style="line-height: 1.4;">
-                <b>Incident:</b> ${activeDispatchInc.title}<br/>
-                <b>Status:</b> Scene Secured & Mitigating<br/>
-                <span style="color: #10b981; font-weight: 700;">Active mitigation loop initiated.</span>
-              </div>
-            </div>
-          `).openPopup();
-        }
-        return;
-      }
-
-      const nextPos = path[currentStep];
-      if (dispatchMarkerRef.current) {
-        dispatchMarkerRef.current.setLatLng(nextPos);
-      }
-
-      trailCoords.push(nextPos);
-      if (dispatchTrailRef.current) {
-        dispatchTrailRef.current.setLatLngs(trailCoords);
-      }
-
-      currentStep++;
-      setTimeout(() => {
-        animationFrameId = requestAnimationFrame(animate);
-      }, 25);
-    };
-
-    animate();
-
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [incidents, mapData]);
-
   return (
     <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', height: '100%', background: 'var(--card-bg)' }}>
       <style>{`
@@ -610,51 +269,9 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
           50% { transform: scale(1.15); opacity: 1; }
           100% { transform: scale(0.95); opacity: 0.8; }
         }
-        @keyframes userPulse {
-          0% { transform: scale(0.9); opacity: 0.8; }
-          50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); }
-          100% { transform: scale(0.9); opacity: 0.8; }
-        }
-        @keyframes flowDash {
-          to {
-            stroke-dashoffset: -20;
-          }
-        }
-        .animated-flow-route {
-          stroke-dasharray: 8, 8;
-        }
-        .animated-flow-route-rank-1 {
-          animation: flowDash 0.8s linear infinite;
-        }
-        .animated-flow-route-rank-2 {
-          animation: flowDash 1.5s linear infinite;
-        }
-        .animated-flow-route-rank-3 {
-          animation: flowDash 2.5s linear infinite;
-        }
         .custom-incident-marker {
           background: transparent !important;
           border: none !important;
-        }
-        .custom-user-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-search-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-pin-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-vehicle-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        @keyframes vehiclePulse {
-          0% { transform: scale(0.9); box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
-          100% { transform: scale(1.1); box-shadow: 0 0 18px rgba(59, 130, 246, 0.95); }
         }
         .leaflet-container {
           font-family: inherit;
@@ -731,76 +348,6 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
         }}
       >
         <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-
-        {/* Floating Search Controls */}
-        <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 1000, display: 'flex', gap: '6px' }}>
-          <input 
-            type="text" 
-            placeholder="Search location or coordinates..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            style={{
-              width: '200px',
-              padding: '8px 12px',
-              fontSize: '12px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-color)',
-              background: 'rgba(15, 23, 42, 0.85)',
-              color: '#fff',
-              backdropFilter: 'blur(6px)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          />
-          <button 
-            onClick={handleSearch}
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              borderRadius: '6px',
-              background: 'var(--primary)',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: '700',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.background = 'var(--primary-light)'}
-            onMouseOut={(e) => e.target.style.background = 'var(--primary)'}
-          >
-            Search
-          </button>
-        </div>
-
-        {/* Floating Geolocation Button */}
-        <button
-          onClick={handleLocate}
-          title="Locate Me"
-          style={{
-            position: 'absolute',
-            bottom: '16px',
-            right: '16px',
-            zIndex: 1000,
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: 'rgba(15, 23, 42, 0.85)',
-            border: '1px solid var(--border-color)',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(6px)',
-            boxShadow: 'var(--shadow-md)',
-            transition: 'all 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-        >
-          <Navigation size={16} />
-        </button>
       </div>
 
       {mapType === 'svg' && (

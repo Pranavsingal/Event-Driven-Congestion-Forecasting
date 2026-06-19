@@ -9,22 +9,9 @@ INTERIM_DIR = os.path.join(BASE_DIR, '..', '..', 'data', 'interim')
 MODELS_DIR = os.path.join(BASE_DIR, '..', '..', 'outputs', 'models')
 PROCESSED_DATA_PATH = os.path.join(BASE_DIR, '..', '..', 'data', 'processed', 'cleaned_data.csv')
 
-# Load encoders
-try:
-    label_encoders = joblib.load(os.path.join(INTERIM_DIR, 'label_encoders.pkl'))
-    kmeans_model = joblib.load(os.path.join(INTERIM_DIR, 'kmeans_model.pkl'))
-except FileNotFoundError:
-    print("Warning: Interim models not found. Feature encoding will fail.")
-    label_encoders, kmeans_model = None, None
-
-# Load ML models
-try:
-    severity_model = joblib.load(os.path.join(MODELS_DIR, 'model1.pkl'))
-    duration_model = joblib.load(os.path.join(MODELS_DIR, 'model2.pkl'))
-    closure_model = joblib.load(os.path.join(MODELS_DIR, 'model3.pkl'))
-except FileNotFoundError:
-    print("Warning: ML models not found.")
-    severity_model, duration_model, closure_model = None, None, None
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
+from model_registry import ModelRegistry
 
 try:
     import onnxruntime as ort
@@ -79,12 +66,14 @@ def extract_features(raw_data: dict) -> pd.DataFrame:
     lat = raw_data.get('latitude', 12.9716)
     lng = raw_data.get('longitude', 77.5946)
     
+    registry = ModelRegistry.get_instance()
+    
     # 1. Encode Categoricals (Fallback to 'Unknown' if missing or None)
-    enc_cause = safe_encode(label_encoders['event_cause'], raw_data.get('event_cause') or 'Unknown')
-    enc_veh = safe_encode(label_encoders['veh_type'], raw_data.get('veh_type') or 'Unknown')
-    enc_corridor = safe_encode(label_encoders['corridor'], raw_data.get('corridor') or 'Unknown')
-    enc_zone = safe_encode(label_encoders['zone'], raw_data.get('zone') or 'Unknown')
-    enc_junction = safe_encode(label_encoders['junction'], raw_data.get('junction') or 'Unknown')
+    enc_cause = safe_encode(registry.label_encoders['event_cause'], raw_data.get('event_cause') or 'Unknown') if registry.label_encoders else 0
+    enc_veh = safe_encode(registry.label_encoders['veh_type'], raw_data.get('veh_type') or 'Unknown') if registry.label_encoders else 0
+    enc_corridor = safe_encode(registry.label_encoders['corridor'], raw_data.get('corridor') or 'Unknown') if registry.label_encoders else 0
+    enc_zone = safe_encode(registry.label_encoders['zone'], raw_data.get('zone') or 'Unknown') if registry.label_encoders else 0
+    enc_junction = safe_encode(registry.label_encoders['junction'], raw_data.get('junction') or 'Unknown') if registry.label_encoders else 0
     
     # 2. Datetime Features
     start_hour = dt.hour
@@ -94,8 +83,8 @@ def extract_features(raw_data: dict) -> pd.DataFrame:
     is_peak = 1 if (7 <= start_hour <= 10) or (17 <= start_hour <= 20) else 0
     
     # 3. Geo Cluster
-    if kmeans_model:
-        lat_cluster = kmeans_model.predict([[lat, lng]])[0]
+    if registry.kmeans_model:
+        lat_cluster = registry.kmeans_model.predict([[lat, lng]])[0]
     else:
         lat_cluster = 0
         
@@ -124,16 +113,17 @@ def generate_plan(input_dict: dict) -> dict:
     # 1. Feature Engineering
     X = extract_features(input_dict)
     
+    registry = ModelRegistry.get_instance()
+    
     # 2. Model Predictions
-    if not severity_model or not duration_model or not closure_model:
+    if not registry.severity_model or not registry.duration_model or not registry.closure_model:
         return {"error": "ML models are not loaded. Run training first."}
         
-    sev_pred_idx = severity_model.predict(X)[0]
-    # Reverse encode severity (Assuming High=0, Low=1, Medium=2 based on our earlier classes, actually let's use LabelEncoder)
-    # Actually, priority classes were: 'High', 'Low', 'Medium'. Let's dynamically decode:
-    severity_label = label_encoders['priority'].inverse_transform([sev_pred_idx])[0]
+    sev_pred_idx = registry.severity_model.predict(X)[0]
+    # Reverse encode severity
+    severity_label = registry.label_encoders['priority'].inverse_transform([sev_pred_idx])[0] if registry.label_encoders else "Medium"
     
-    dur_pred = duration_model.predict(X)[0]
+    dur_pred = registry.duration_model.predict(X)[0]
     dur_pred = max(0, float(dur_pred))
     
     # Early skip if duration is zero
@@ -143,7 +133,7 @@ def generate_plan(input_dict: dict) -> dict:
             "reason": "Predicted duration is ~0 mins. No active response required."
         }
     
-    closure_pred = bool(closure_model.predict(X)[0])
+    closure_pred = bool(registry.closure_model.predict(X)[0])
     
     # 3. Historical Lookup
     event_cause = input_dict.get('event_cause', 'Unknown')

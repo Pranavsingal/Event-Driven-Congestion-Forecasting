@@ -147,6 +147,31 @@ router.post('/dispatch', (req, res) => {
   res.json({ success: true, incidentId, status: nextStatus });
 });
 
+// 4. POST /api/feedback - Forward feedback to AI service
+router.post('/feedback', async (req, res) => {
+  try {
+    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
+    
+    // Dynamic import for fetch (node 18+)
+    const response = await fetch(`${aiServiceUrl}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: text });
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("Failed to forward feedback to AI Service:", err);
+    res.status(500).json({ error: "Failed to connect to AI service" });
+  }
+});
+
 // Helper incidents resolver based on event type
 function getIncidentsList(event) {
   let list = [];

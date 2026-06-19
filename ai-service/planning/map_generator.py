@@ -217,7 +217,7 @@ def get_map_coordinates(filters: dict) -> dict:
     # 1. Base Center coordinates
     center_coords = get_location_coordinates(junction, zone, corridor)
     
-    # 2. Barricade Coordinates
+    # 2. Barricade Coordinates (using OSRM intersections)
     is_peak = int(filters.get("hour", 12)) in [7, 8, 9, 10, 17, 18, 19, 20]
     barricades_count = 4
     if cause == "accident":
@@ -228,76 +228,59 @@ def get_map_coordinates(filters: dict) -> dict:
         barricades_count = 10
         
     barricades = []
-    r = 0.003  # degrees (~300m)
-    for i in range(barricades_count):
-        angle = (2 * np.pi / barricades_count) * i
-        b_lat = center_coords[0] + r * np.sin(angle)
-        b_lng = center_coords[1] + r * np.cos(angle)
-        barricades.append([b_lat, b_lng])
-        
-    # 3. Route Coordinates
-    route_coords = []
-    route_drawn = False
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
-        # Try matching by Corridor first
-        route_matches = df[(df['corridor'].str.lower() == str(corridor).lower()) & (df['route_path'].notna())]
+        from routing.osrm_client import get_intersection_points
+        # Get actual road intersection points around center
+        intersect_pts = get_intersection_points(center_coords[0], center_coords[1], radius_km=0.3, num_points=barricades_count)
+        for pt in intersect_pts:
+            barricades.append({"coords": pt, "type": "road_block", "label": f"Block road near incident"})
+    except ImportError:
+        # Fallback
+        r = 0.003
+        for i in range(barricades_count):
+            angle = (2 * np.pi / barricades_count) * i
+            b_lat = center_coords[0] + r * np.sin(angle)
+            b_lng = center_coords[1] + r * np.cos(angle)
+            barricades.append({"coords": [b_lat, b_lng], "type": "road_block", "label": "Block road"})
+            
+    # 3. Route Coordinates (from diversion logic)
+    routes_data = []
+    try:
+        from planning.diversion import get_diversions
+        diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause)
         
-        # Fallback to matching by Junction
-        if len(route_matches) == 0 and junction and junction != "Unknown" and junction != "none":
-            route_matches = df[(df['junction'].str.lower() == str(junction).lower()) & (df['route_path'].notna())]
-            
-        # Fallback to matching by Zone
-        if len(route_matches) == 0 and zone and zone != "Unknown" and zone != "none":
-            route_matches = df[(df['zone'].str.lower() == str(zone).lower()) & (df['route_path'].notna())]
-            
-        # Fallback to matching by Event Cause
-        if len(route_matches) == 0:
-            route_matches = df[(df['event_cause'].str.lower() == str(cause).lower()) & (df['route_path'].notna())]
-            
-        # Iterate over matches and find the first geographically relevant route path
-        for _, row in route_matches.iterrows():
-            path_str = row['route_path']
-            if path_str and path_str != "[]" and isinstance(path_str, str):
-                try:
-                    coords_list = json.loads(path_str)
-                    if isinstance(coords_list, list) and len(coords_list) > 1:
-                        # Geographically relevant check: first point must be within ~8km of center_coords
-                        first_pt = coords_list[0]
-                        dist = np.sqrt((first_pt[0] - center_coords[0])**2 + (first_pt[1] - center_coords[1])**2)
-                        if dist < 0.08:
-                            route_coords = coords_list
-                            route_drawn = True
-                            break
-                except Exception:
-                    pass
+        for div in diversions:
+            geom = div.get("route_geometry", [])
+            # Add entry/exit barricades for the route
+            if len(geom) > 0:
+                barricades.append({"coords": geom[0], "type": "entry", "label": f"Entry to {div['route_name']}"})
+                barricades.append({"coords": geom[-1], "type": "exit", "label": f"Exit from {div['route_name']}"})
+                
+            routes_data.append({
+                "rank": div["rank"],
+                "name": div["route_name"],
+                "geometry": geom,
+                "distance_km": div["distance_km"],
+                "eta_mins": div["eta_mins"]
+            })
     except Exception as e:
-        print(f"Error searching route path in get_map_coordinates: {e}")
+        print(f"Error fetching diversions for map: {e}")
         
-    lat, lng = center_coords
-    if not route_drawn:
-        route1 = [
+    if len(routes_data) == 0:
+        lat, lng = center_coords
+        route_coords = [
             [lat - 0.005, lng],
             [lat - 0.002, lng + 0.004],
             [lat + 0.002, lng + 0.004],
             [lat + 0.005, lng]
         ]
-        route2 = [
-            [lat - 0.005, lng],
-            [lat - 0.002, lng - 0.004],
-            [lat + 0.002, lng - 0.004],
-            [lat + 0.005, lng]
-        ]
-        route3 = [
-            [lat - 0.005, lng],
-            [lat - 0.001, lng + 0.007],
-            [lat + 0.001, lng + 0.007],
-            [lat + 0.005, lng]
-        ]
-    else:
-        route1 = route_coords
-        route2 = [[p[0] + 0.0015, p[1] + 0.0015] for p in route1]
-        route3 = [[p[0] - 0.0015, p[1] - 0.0015] for p in route1]
+        routes_data.append({
+            "rank": 1,
+            "name": "Default Bypass",
+            "geometry": route_coords,
+            "distance_km": 1.2,
+            "eta_mins": 5
+        })
         
     # 4. Heatmap coordinates (Historical incidents coordinates matching cause)
     heatmap = []
@@ -314,12 +297,7 @@ def get_map_coordinates(filters: dict) -> dict:
     return {
         "center": center_coords,
         "barricades": barricades,
-        "route": route1,
-        "routes": [
-            {"rank": 1, "coords": route1},
-            {"rank": 2, "coords": route2},
-            {"rank": 3, "coords": route3}
-        ],
+        "routes": routes_data,
         "heatmap": heatmap
     }
 
