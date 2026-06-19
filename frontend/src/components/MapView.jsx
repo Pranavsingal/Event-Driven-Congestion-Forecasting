@@ -183,6 +183,42 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
         maxZoom: 20
       }).addTo(map);
 
+      // Drop a pin anywhere on the map on click
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        
+        if (searchMarkerRef.current) {
+          searchMarkerRef.current.remove();
+        }
+        
+        const pinIcon = L.divIcon({
+          className: 'custom-pin-marker',
+          html: `<div style="
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.25);
+            border: 2px solid #8b5cf6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          "><div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; box-shadow: 0 0 8px #8b5cf6;"></div></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+        
+        searchMarkerRef.current = L.marker([lat, lng], { icon: pinIcon })
+          .bindPopup(`
+            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
+              <b>Pinned Location</b><br/>
+              Latitude: ${lat.toFixed(6)}<br/>
+              Longitude: ${lng.toFixed(6)}
+            </div>
+          `)
+          .addTo(map)
+          .openPopup();
+      });
+
       layersGroupRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
     }
@@ -354,6 +390,10 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
           border: none !important;
         }
         .custom-search-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .custom-pin-marker {
           background: transparent !important;
           border: none !important;
         }
