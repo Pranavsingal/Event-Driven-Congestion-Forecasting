@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Compass, ArrowUpRight } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-export default function MapView({ sectors, incidents, filters }) {
+export default function MapView({ sectors, incidents, filters, mapData }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [mapType, setMapType] = useState('svg'); // 'svg' or 'gis'
+  const [mapType, setMapType] = useState('gis'); // 'svg' or 'gis'
 
-  const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
-  const mapUrl = `${AI_SERVICE_URL}/map?cause=${encodeURIComponent(filters?.cause || 'Unknown')}&corridor=${encodeURIComponent(filters?.corridor || 'Unknown')}&zone=${encodeURIComponent(filters?.zone || 'Unknown')}&junction=${encodeURIComponent(filters?.junction || 'Unknown')}&veh_type=${encodeURIComponent(filters?.veh_type || 'Unknown')}&hour=${filters?.hour || 12}&day=${filters?.day || 3}&event=${encodeURIComponent(filters?.event || 'none')}`;
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const layersGroupRef = useRef(null);
 
   // Map sector ID to color styles matching traffic standards
   const getSectorStyles = (congestion) => {
@@ -37,8 +40,176 @@ export default function MapView({ sectors, incidents, filters }) {
     });
   };
 
+  // Initialize Map
+  useEffect(() => {
+    if (!mapInstanceRef.current && mapRef.current) {
+      const center = mapData?.center || [12.9716, 77.5946];
+      const map = L.map(mapRef.current, {
+        center: center,
+        zoom: 14,
+        zoomControl: true
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 20
+      }).addTo(map);
+
+      layersGroupRef.current = L.layerGroup().addTo(map);
+      mapInstanceRef.current = map;
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Recenter and Redraw Layers when mapData or filters change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layersGroup = layersGroupRef.current;
+    if (!map || !layersGroup) return;
+
+    layersGroup.clearLayers();
+
+    if (!mapData) return;
+
+    if (mapData.center) {
+      map.setView(mapData.center, 14);
+    }
+
+    // 1. Add Incident Marker
+    if (mapData.center) {
+      const cause = filters?.cause || 'Unknown';
+      const corridor = filters?.corridor || 'Unknown';
+      const zone = filters?.zone || 'Unknown';
+      const junction = filters?.junction || 'Unknown';
+      const veh_type = filters?.veh_type || 'Unknown';
+
+      const popupContent = `
+        <div style="font-family: 'Public Sans', sans-serif; font-size: 12px; color: #1f2937; min-width: 160px; padding: 4px;">
+          <h4 style="margin: 0 0 6px 0; color: #c62828; font-weight: bold; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; font-size: 13px;">Active Bottleneck</h4>
+          <div style="margin-top: 4px; line-height: 1.5;">
+            <b>Cause:</b> ${cause.replace('_', ' ').toUpperCase()}<br/>
+            <b>Corridor:</b> ${corridor}<br/>
+            <b>Zone:</b> ${zone}<br/>
+            <b>Junction:</b> ${junction}<br/>
+            <b>Vehicle:</b> ${veh_type.replace('_', ' ').toUpperCase()}<br/>
+          </div>
+        </div>
+      `;
+
+      const incidentIcon = L.divIcon({
+        className: 'custom-incident-marker',
+        html: `<div style="
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.2);
+          border: 2px solid #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: pulse 2s infinite;
+        "><div style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      L.marker(mapData.center, { icon: incidentIcon })
+        .bindPopup(popupContent)
+        .addTo(layersGroup);
+    }
+
+    // 2. Add Barricade Points
+    if (mapData.barricades) {
+      mapData.barricades.forEach((barricade, index) => {
+        const barricadePopup = `
+          <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
+            <b style="color: #ed6c02; font-size: 12px;">Barricade Point #${index + 1}</b><br/>
+            Lanes Closed: Direct traffic to alternate side.
+          </div>
+        `;
+
+        L.circleMarker(barricade, {
+          radius: 8,
+          color: '#d97706',
+          fillColor: '#f59e0b',
+          fillOpacity: 0.8,
+          weight: 2
+        })
+          .bindPopup(barricadePopup)
+          .addTo(layersGroup);
+      });
+    }
+
+    // 3. Add Suggested Diversion Route
+    if (mapData.route && mapData.route.length > 0) {
+      const isCustomRoute = mapData.route.length === 4;
+      const routeColor = isCustomRoute ? '#2e7d32' : '#00bcd4'; // Green or Cyan
+      const routeName = isCustomRoute ? 'Default Suggested Diversion Route' : 'AI Suggested Diversion Path';
+      const popupText = isCustomRoute ? 'Standard Bypass Loop: Flow offloaded by 12%.' : 'Diversion Route: Flow offloaded by 15%.';
+
+      const routePopup = `
+        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
+          <b style="color: ${routeColor}; font-size: 12px;">${routeName}</b><br/>
+          ${popupText}
+        </div>
+      `;
+
+      L.polyline(mapData.route, {
+        color: routeColor,
+        weight: 5,
+        opacity: 0.85,
+        lineJoin: 'round'
+      })
+        .bindPopup(routePopup)
+        .addTo(layersGroup);
+    }
+
+    // 4. Add Historical Heatmap points
+    if (mapData.heatmap) {
+      mapData.heatmap.forEach(point => {
+        L.circleMarker(point, {
+          radius: 12,
+          color: '#1565c0',
+          fillColor: '#1565c0',
+          fillOpacity: 0.15,
+          weight: 0
+        }).addTo(layersGroup);
+      });
+    }
+
+  }, [mapData, filters]);
+
+  // Handle map resizing on visibility toggle
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current.invalidateSize();
+      }, 50);
+    }
+  }, [mapType]);
+
   return (
     <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', height: '100%', background: 'var(--card-bg)' }}>
+      <style>{`
+        @keyframes pulse {
+          0% { transform: scale(0.95); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .custom-incident-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .leaflet-container {
+          font-family: inherit;
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -97,19 +268,22 @@ export default function MapView({ sectors, incidents, filters }) {
       </div>
 
       {/* Map Content Panel */}
-      {mapType === 'gis' ? (
-        <div style={{ width: '100%', height: '350px', background: '#0f172a', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-          <iframe
-            src={mapUrl}
-            title="Interactive Folium GIS Map"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none'
-            }}
-          />
-        </div>
-      ) : (
+      <div 
+        style={{ 
+          display: mapType === 'gis' ? 'block' : 'none',
+          width: '100%', 
+          height: '350px', 
+          background: '#0f172a', 
+          borderRadius: '12px', 
+          overflow: 'hidden', 
+          border: '1px solid var(--border-color)',
+          position: 'relative'
+        }}
+      >
+        <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+      </div>
+
+      {mapType === 'svg' && (
         <div 
           style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', background: '#0f172a', borderRadius: '12px', padding: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}
           onMouseMove={handleMouseMove}

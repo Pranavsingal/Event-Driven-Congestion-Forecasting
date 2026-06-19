@@ -12,7 +12,7 @@ import tempfile
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from planning.planner import generate_plan, extract_features, severity_model, closure_model, label_encoders
-from planning.map_generator import generate_interactive_map
+from planning.map_generator import generate_interactive_map, get_map_coordinates
 from planning.diversion import get_diversions
 from planning.pdf_generator import generate_field_action_pdf
 
@@ -175,6 +175,17 @@ def predict(
         elif display_severity == "Moderate":
             flow_rate = "2,300 veh/h"
             
+        filters = {
+            "cause": cause,
+            "veh_type": veh_type,
+            "corridor": corridor,
+            "zone": zone,
+            "junction": junction,
+            "hour": hour,
+            "day": day,
+            "event": event
+        }
+        
         response_data = {
             "success": True,
             "prediction": {
@@ -190,7 +201,8 @@ def predict(
             "plan": plan,
             "diversions": get_diversions(junction, hour, cause),
             "historicalInsights": get_historical_insights(zone, cause),
-            "historicalContext": plan_result.get("historical_context", "")
+            "historicalContext": plan_result.get("historical_context", ""),
+            "mapData": get_map_coordinates(filters)
         }
         return response_data
         

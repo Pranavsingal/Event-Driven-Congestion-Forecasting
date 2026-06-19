@@ -204,6 +204,89 @@ def generate_interactive_map(filters: dict) -> str:
     # Return map as HTML string
     return m._repr_html_()
 
+def get_map_coordinates(filters: dict) -> dict:
+    """
+    Returns structured geospatial coordinate lists for the frontend map renderer.
+    """
+    cause = filters.get("cause", "Unknown")
+    corridor = filters.get("corridor", "Unknown")
+    zone = filters.get("zone", "Unknown")
+    junction = filters.get("junction", "Unknown")
+    veh_type = filters.get("veh_type", "Unknown")
+    
+    # 1. Base Center coordinates
+    center_coords = get_location_coordinates(junction, zone, corridor)
+    
+    # 2. Barricade Coordinates
+    is_peak = int(filters.get("hour", 12)) in [7, 8, 9, 10, 17, 18, 19, 20]
+    barricades_count = 4
+    if cause == "accident":
+        barricades_count = 8 if is_peak else 6
+    elif cause == "construction":
+        barricades_count = 12
+    elif cause == "water_logging":
+        barricades_count = 10
+        
+    barricades = []
+    r = 0.003  # degrees (~300m)
+    for i in range(barricades_count):
+        angle = (2 * np.pi / barricades_count) * i
+        b_lat = center_coords[0] + r * np.sin(angle)
+        b_lng = center_coords[1] + r * np.cos(angle)
+        barricades.append([b_lat, b_lng])
+        
+    # 3. Route Coordinates
+    route_coords = []
+    route_drawn = False
+    try:
+        df = pd.read_csv(PROCESSED_DATA_PATH)
+        route_matches = df[(df['corridor'].str.lower() == str(corridor).lower()) & (df['route_path'].notna())]
+        if len(route_matches) == 0:
+            route_matches = df[(df['event_cause'].str.lower() == str(cause).lower()) & (df['route_path'].notna())]
+            
+        for _, row in route_matches.head(3).iterrows():
+            path_str = row['route_path']
+            if path_str and path_str != "[]" and isinstance(path_str, str):
+                try:
+                    coords_list = json.loads(path_str)
+                    if isinstance(coords_list, list) and len(coords_list) > 1:
+                        route_coords = coords_list
+                        route_drawn = True
+                        break
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"Error searching route path in get_map_coordinates: {e}")
+        
+    if not route_drawn:
+        lat, lng = center_coords
+        route_coords = [
+            [lat - 0.005, lng],
+            [lat - 0.002, lng + 0.004],
+            [lat + 0.002, lng + 0.004],
+            [lat + 0.005, lng]
+        ]
+        
+    # 4. Heatmap coordinates (Historical incidents coordinates matching cause)
+    heatmap = []
+    try:
+        df = pd.read_csv(PROCESSED_DATA_PATH)
+        hist_df = df[df['event_cause'].str.lower() == str(cause).lower()]
+        if len(hist_df) < 5:
+            hist_df = df.head(300)
+            
+        heatmap = hist_df[['latitude', 'longitude']].dropna().values.tolist()
+    except Exception as e:
+        print(f"Error fetching heatmap in get_map_coordinates: {e}")
+        
+    return {
+        "center": center_coords,
+        "barricades": barricades,
+        "route": route_coords,
+        "heatmap": heatmap
+    }
+
+
 if __name__ == "__main__":
     test_filters = {
         "cause": "accident",

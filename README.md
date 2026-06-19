@@ -109,7 +109,7 @@ The Express backend coordinates traffic incident tickets, dispatches emergency u
 
 ### 4. Launch the React Dashboard (`frontend`)
 
-The dashboard features a glassmorphic layout with live interactive SVG district grids mapping out bottlenecks, real-time statistics, and model performance logs.
+The dashboard features a glassmorphic layout with live interactive SVG district grids, a native high-fidelity Leaflet GIS Map mapping out bottleneck centers, suggested alternate routes, barricade alert pins, and historical congestion heatmaps, along with real-time statistics and model performance logs.
 
 1. Navigate to the `frontend` directory:
    ```bash

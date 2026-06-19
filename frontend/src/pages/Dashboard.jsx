@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [planData, setPlanData] = useState(null);
   const [diversionsData, setDiversionsData] = useState([]);
   const [historicalInsightsData, setHistoricalInsightsData] = useState(null);
+  const [mapData, setMapData] = useState(null);
   const [stats, setStats] = useState({
     congestionIndex: 0,
     activeIncidents: 0,
@@ -81,6 +82,7 @@ export default function Dashboard() {
           setPredictionData(res.prediction);
           setDiversionsData(res.diversions || []);
           setHistoricalInsightsData(res.historicalInsights || null);
+          setMapData(res.mapData || null);
           const confidenceNum = parseFloat(res.prediction.severityConfidence);
           setStats(prev => ({
             ...prev,
@@ -149,7 +151,7 @@ export default function Dashboard() {
           <HistoricalInsights insights={historicalInsightsData} />
           
           <div style={{ flex: 1 }}>
-            <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} filters={filters} />
+            <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} filters={filters} mapData={mapData} />
           </div>
           <div>
             <IncidentList incidents={incidents} onDispatch={handleDispatch} />
