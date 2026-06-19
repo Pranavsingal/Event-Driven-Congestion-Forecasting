@@ -63,6 +63,7 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
             "rank": idx + 1,
             "route_name": alt["route"],
             "distance_km": alt["distance_km"],
+            "base_time_mins": alt["base_time_mins"],
             "eta_mins": eta,
             "suitability_score": score,
             "reason": reason
@@ -71,9 +72,24 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
     # Sort alternatives by suitability score (ascending - lower score is better)
     scored_alternatives = sorted(scored_alternatives, key=lambda x: x["suitability_score"])
     
-    # Re-rank after sorting
+    # Re-rank and calculate dynamic metrics after sorting
     for rank_idx, item in enumerate(scored_alternatives):
-        item["rank"] = rank_idx + 1
+        rank = rank_idx + 1
+        item["rank"] = rank
+        
+        # Calculate detour time difference relative to base_time_mins
+        detour_diff = max(1, item["eta_mins"] - item.pop("base_time_mins"))
+        item["travel_time_detour"] = f"+{detour_diff} mins detour"
+        
+        # Calculate offload efficiency score based on suitability score and rank
+        score = item["suitability_score"]
+        if rank == 1:
+            offload_score = max(85, min(96, int(100 - score * 0.5)))
+        elif rank == 2:
+            offload_score = max(70, min(84, int(90 - score * 0.6)))
+        else:
+            offload_score = max(50, min(69, int(80 - score * 0.7)))
+        item["flow_offload_efficiency"] = f"{offload_score}%"
         
     return scored_alternatives
 

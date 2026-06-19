@@ -151,7 +151,7 @@ export default function Dashboard() {
           <HistoricalInsights insights={historicalInsightsData} />
           
           <div style={{ flex: 1 }}>
-            <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} filters={filters} mapData={mapData} />
+            <MapView sectors={sectors} incidents={incidents.filter(i => i.status !== 'resolved')} filters={filters} mapData={mapData} diversions={diversionsData} />
           </div>
           <div>
             <IncidentList incidents={incidents} onDispatch={handleDispatch} />

@@ -3,7 +3,7 @@ import { Compass, ArrowUpRight, Navigation } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export default function MapView({ sectors, incidents, filters, mapData }) {
+export default function MapView({ sectors, incidents, filters, mapData, diversions }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [mapType, setMapType] = useState('gis'); // 'svg' or 'gis'
@@ -183,7 +183,7 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
         maxZoom: 20
       }).addTo(map);
 
-      // Drop a pin anywhere on the map on click
+      // Drop a pin anywhere on the map on click with reverse geocoding
       map.on('click', (e) => {
         const { lat, lng } = e.latlng;
         
@@ -207,16 +207,46 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
           iconAnchor: [10, 10]
         });
         
-        searchMarkerRef.current = L.marker([lat, lng], { icon: pinIcon })
+        const tempMarker = L.marker([lat, lng], { icon: pinIcon })
           .bindPopup(`
-            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
-              <b>Pinned Location</b><br/>
+            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 140px;">
+              <b>Loading address details...</b><br/>
               Latitude: ${lat.toFixed(6)}<br/>
               Longitude: ${lng.toFixed(6)}
             </div>
           `)
-          .addTo(map)
-          .openPopup();
+          .addTo(map);
+          
+        tempMarker.openPopup();
+        searchMarkerRef.current = tempMarker;
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+          .then(res => res.json())
+          .then(data => {
+            if (searchMarkerRef.current === tempMarker) {
+              const addressName = data.display_name || "Unnamed Road";
+              tempMarker.setPopupContent(`
+                <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; max-width: 200px;">
+                  <b style="color: #8b5cf6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Pinned Location</b>
+                  <div style="line-height: 1.4;">
+                    <b>Address:</b> ${addressName}<br/>
+                    <b>Coords:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                  </div>
+                </div>
+              `);
+            }
+          })
+          .catch(err => {
+            console.error("Reverse geocoding failed:", err);
+            if (searchMarkerRef.current === tempMarker) {
+              tempMarker.setPopupContent(`
+                <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px;">
+                  <b style="color: #8b5cf6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Pinned Location</b>
+                  <b>Coords:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                </div>
+              `);
+            }
+          });
       });
 
       layersGroupRef.current = L.layerGroup().addTo(map);
@@ -320,28 +350,64 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
       });
     }
 
-    // 3. Add Suggested Diversion Route
-    if (mapData.route && mapData.route.length > 0) {
-      const isCustomRoute = mapData.route.length === 4;
-      const routeColor = isCustomRoute ? '#2e7d32' : '#00bcd4'; // Green or Cyan
-      const routeName = isCustomRoute ? 'Default Suggested Diversion Route' : 'AI Suggested Diversion Path';
-      const popupText = isCustomRoute ? 'Standard Bypass Loop: Flow offloaded by 12%.' : 'Diversion Route: Flow offloaded by 15%.';
+    // 3. Add Suggested Diversion Routes (with animated flow lines & detour details)
+    const drawRoute = (coords, rank) => {
+      const detour = (diversions && diversions.length > 0) ? diversions.find(d => d.rank === rank) : null;
+      
+      let routeColor = '#00bcd4'; // Rank 1: Cyan (default)
+      if (rank === 2) routeColor = '#2e7d32'; // Rank 2: Green
+      else if (rank === 3) routeColor = '#f59e0b'; // Rank 3: Amber
+      
+      const routeName = detour ? detour.route_name : `AI Detour Route #${rank}`;
+      const routeETA = detour ? `${detour.eta_mins} mins` : (rank === 1 ? '10 mins' : rank === 2 ? '12 mins' : '15 mins');
+      const routeDistance = detour ? `${detour.distance_km} km` : (rank === 1 ? '3.2 km' : rank === 2 ? '4.1 km' : '4.7 km');
+      const routeDetourTime = detour ? detour.travel_time_detour : (rank === 1 ? '+2 mins detour' : rank === 2 ? '+4 mins detour' : '+6 mins detour');
+      const routeOffload = detour ? detour.flow_offload_efficiency : (rank === 1 ? '92%' : rank === 2 ? '78%' : '63%');
+      const routeReason = detour ? detour.reason : (rank === 1 ? 'Lowest congestion history with standard lane width.' : rank === 2 ? 'Slightly longer bypass but avoids merges.' : 'Secondary backup artery.');
 
       const routePopup = `
-        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 2px;">
-          <b style="color: ${routeColor}; font-size: 12px;">${routeName}</b><br/>
-          ${popupText}
+        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 180px;">
+          <b style="color: ${routeColor}; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">${routeName}</b>
+          <div style="line-height: 1.5; margin-bottom: 4px;">
+            <b>Distance:</b> ${routeDistance}<br/>
+            <b>Travel Time:</b> <span style="color: ${routeColor}; font-weight: 700;">${routeDetourTime}</span> (ETA: ${routeETA})<br/>
+            <b>Offload Efficiency:</b> <span style="font-weight: 700; color: #10b981;">${routeOffload}</span><br/>
+            <b>Reason:</b> ${routeReason}
+          </div>
         </div>
       `;
 
-      L.polyline(mapData.route, {
+      const speedClass = `animated-flow-route-rank-${rank}`;
+      const polyline = L.polyline(coords, {
         color: routeColor,
-        weight: 5,
-        opacity: 0.85,
-        lineJoin: 'round'
+        weight: rank === 1 ? 6 : 4,
+        opacity: rank === 1 ? 0.9 : 0.65,
+        lineJoin: 'round',
+        className: `animated-flow-route ${speedClass}`
       })
         .bindPopup(routePopup)
         .addTo(layersGroup);
+
+      // Bind interactive mouse hover events to display popups dynamically on hover
+      polyline.on('mouseover', function (e) {
+        const layer = e.target;
+        layer.setStyle({ opacity: 1.0, weight: rank === 1 ? 8 : 6 });
+        this.openPopup(e.latlng);
+      });
+      
+      polyline.on('mouseout', function (e) {
+        const layer = e.target;
+        layer.setStyle({ opacity: rank === 1 ? 0.9 : 0.65, weight: rank === 1 ? 6 : 4 });
+        this.closePopup();
+      });
+    };
+
+    if (mapData.routes && mapData.routes.length > 0) {
+      mapData.routes.forEach(routeObj => {
+        drawRoute(routeObj.coords, routeObj.rank);
+      });
+    } else if (mapData.route && mapData.route.length > 0) {
+      drawRoute(mapData.route, 1);
     }
 
     // 4. Add Historical Heatmap points
@@ -380,6 +446,23 @@ export default function MapView({ sectors, incidents, filters, mapData }) {
           0% { transform: scale(0.9); opacity: 0.8; }
           50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); }
           100% { transform: scale(0.9); opacity: 0.8; }
+        }
+        @keyframes flowDash {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .animated-flow-route {
+          stroke-dasharray: 8, 8;
+        }
+        .animated-flow-route-rank-1 {
+          animation: flowDash 0.8s linear infinite;
+        }
+        .animated-flow-route-rank-2 {
+          animation: flowDash 1.5s linear infinite;
+        }
+        .animated-flow-route-rank-3 {
+          animation: flowDash 2.5s linear infinite;
         }
         .custom-incident-marker {
           background: transparent !important;

@@ -274,14 +274,30 @@ def get_map_coordinates(filters: dict) -> dict:
     except Exception as e:
         print(f"Error searching route path in get_map_coordinates: {e}")
         
+    lat, lng = center_coords
     if not route_drawn:
-        lat, lng = center_coords
-        route_coords = [
+        route1 = [
             [lat - 0.005, lng],
             [lat - 0.002, lng + 0.004],
             [lat + 0.002, lng + 0.004],
             [lat + 0.005, lng]
         ]
+        route2 = [
+            [lat - 0.005, lng],
+            [lat - 0.002, lng - 0.004],
+            [lat + 0.002, lng - 0.004],
+            [lat + 0.005, lng]
+        ]
+        route3 = [
+            [lat - 0.005, lng],
+            [lat - 0.001, lng + 0.007],
+            [lat + 0.001, lng + 0.007],
+            [lat + 0.005, lng]
+        ]
+    else:
+        route1 = route_coords
+        route2 = [[p[0] + 0.0015, p[1] + 0.0015] for p in route1]
+        route3 = [[p[0] - 0.0015, p[1] - 0.0015] for p in route1]
         
     # 4. Heatmap coordinates (Historical incidents coordinates matching cause)
     heatmap = []
@@ -298,7 +314,12 @@ def get_map_coordinates(filters: dict) -> dict:
     return {
         "center": center_coords,
         "barricades": barricades,
-        "route": route_coords,
+        "route": route1,
+        "routes": [
+            {"rank": 1, "coords": route1},
+            {"rank": 2, "coords": route2},
+            {"rank": 3, "coords": route3}
+        ],
         "heatmap": heatmap
     }
 
