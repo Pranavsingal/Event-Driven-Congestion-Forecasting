@@ -14,6 +14,9 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
   const layersGroupRef = useRef(null);
   const userMarkerRef = useRef(null);
   const searchMarkerRef = useRef(null);
+  const dispatchMarkerRef = useRef(null);
+  const dispatchTrailRef = useRef(null);
+  const animatedIncidentsRef = useRef(new Set());
 
   // Map sector ID to color styles matching traffic standards
   const getSectorStyles = (congestion) => {
@@ -434,6 +437,171 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
     }
   }, [mapType]);
 
+  // Watch for dispatched incidents and trigger vehicle tracking animations
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapData) return;
+
+    // Find any incident with status === 'dispatched'
+    const activeDispatchInc = incidents.find(i => i.status === 'dispatched');
+    if (!activeDispatchInc) {
+      // If no active dispatch incident, clear existing tracking vehicle/trail
+      if (dispatchMarkerRef.current) {
+        dispatchMarkerRef.current.remove();
+        dispatchMarkerRef.current = null;
+      }
+      if (dispatchTrailRef.current) {
+        dispatchTrailRef.current.remove();
+        dispatchTrailRef.current = null;
+      }
+      return;
+    }
+
+    const incId = activeDispatchInc.id;
+    // Check if we have already animated this dispatch incident
+    if (animatedIncidentsRef.current.has(incId)) {
+      return;
+    }
+
+    // Mark as animated so we don't restart it
+    animatedIncidentsRef.current.add(incId);
+
+    // Get the route coords to animate along
+    let routePoints = [];
+    if (mapData.routes && mapData.routes.length > 0) {
+      routePoints = mapData.routes[0].coords;
+    } else if (mapData.route && mapData.route.length > 0) {
+      routePoints = mapData.route;
+    }
+
+    if (routePoints.length === 0) {
+      const lat = mapData.center ? mapData.center[0] : 12.9716;
+      const lng = mapData.center ? mapData.center[1] : 77.5946;
+      routePoints = [
+        [lat - 0.015, lng - 0.015],
+        [lat, lng]
+      ];
+    }
+
+    // Build interpolated path steps (approx 120 points total for a smooth 3-second animation)
+    const stepsPerSegment = Math.max(10, Math.round(120 / (routePoints.length - 1)));
+    const path = [];
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const start = routePoints[i];
+      const end = routePoints[i + 1];
+      for (let step = 0; step < stepsPerSegment; step++) {
+        const t = step / stepsPerSegment;
+        const lat = start[0] + (end[0] - start[0]) * t;
+        const lng = start[1] + (end[1] - start[1]) * t;
+        path.push([lat, lng]);
+      }
+    }
+    path.push(routePoints[routePoints.length - 1]);
+
+    // Clean up previous animations if any
+    if (dispatchMarkerRef.current) {
+      dispatchMarkerRef.current.remove();
+    }
+    if (dispatchTrailRef.current) {
+      dispatchTrailRef.current.remove();
+    }
+
+    // Create the vehicle marker
+    const vehicleIcon = L.divIcon({
+      className: 'custom-vehicle-marker',
+      html: `<div style="
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #3b82f6;
+        border: 2px solid #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 10px #3b82f6;
+        animation: vehiclePulse 1s infinite alternate;
+      ">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="3" width="15" height="13" rx="2" ry="2"></rect>
+          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+          <circle cx="5.5" cy="18.5" r="2.5"></circle>
+          <circle cx="18.5" cy="18.5" r="2.5"></circle>
+        </svg>
+      </div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+
+    const startPos = path[0];
+    const dispatchMarker = L.marker(startPos, { icon: vehicleIcon })
+      .bindPopup(`
+        <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 4px; min-width: 130px;">
+          <b style="color: #3b82f6; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Rescue Dispatch</b>
+          <b>Unit:</b> Express Tow Truck #14<br/>
+          <b>Status:</b> En Route to ${activeDispatchInc.title}...
+        </div>
+      `)
+      .addTo(map);
+
+    dispatchMarker.openPopup();
+    dispatchMarkerRef.current = dispatchMarker;
+
+    // Create the trail polyline
+    const trail = L.polyline([startPos], {
+      color: '#3b82f6',
+      weight: 3,
+      opacity: 0.6,
+      dashArray: '5, 5'
+    }).addTo(map);
+    dispatchTrailRef.current = trail;
+
+    let currentStep = 0;
+    let animationFrameId = null;
+    const trailCoords = [];
+
+    const animate = () => {
+      if (currentStep >= path.length) {
+        if (dispatchMarkerRef.current) {
+          dispatchMarkerRef.current.setLatLng(path[path.length - 1]);
+          dispatchMarkerRef.current.bindPopup(`
+            <div style="font-family: 'Public Sans', sans-serif; font-size: 11px; color: #1f2937; padding: 6px; min-width: 180px;">
+              <b style="color: #10b981; font-size: 12px; display: block; border-bottom: 1px solid #d7dee8; padding-bottom: 4px; margin-bottom: 6px;">Unit Arrived</b>
+              <div style="line-height: 1.4;">
+                <b>Incident:</b> ${activeDispatchInc.title}<br/>
+                <b>Status:</b> Scene Secured & Mitigating<br/>
+                <span style="color: #10b981; font-weight: 700;">Active mitigation loop initiated.</span>
+              </div>
+            </div>
+          `).openPopup();
+        }
+        return;
+      }
+
+      const nextPos = path[currentStep];
+      if (dispatchMarkerRef.current) {
+        dispatchMarkerRef.current.setLatLng(nextPos);
+      }
+
+      trailCoords.push(nextPos);
+      if (dispatchTrailRef.current) {
+        dispatchTrailRef.current.setLatLngs(trailCoords);
+      }
+
+      currentStep++;
+      setTimeout(() => {
+        animationFrameId = requestAnimationFrame(animate);
+      }, 25);
+    };
+
+    animate();
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [incidents, mapData]);
+
   return (
     <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', height: '100%', background: 'var(--card-bg)' }}>
       <style>{`
@@ -479,6 +647,14 @@ export default function MapView({ sectors, incidents, filters, mapData, diversio
         .custom-pin-marker {
           background: transparent !important;
           border: none !important;
+        }
+        .custom-vehicle-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        @keyframes vehiclePulse {
+          0% { transform: scale(0.9); box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+          100% { transform: scale(1.1); box-shadow: 0 0 18px rgba(59, 130, 246, 0.95); }
         }
         .leaflet-container {
           font-family: inherit;
