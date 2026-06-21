@@ -2,11 +2,6 @@ import os
 import pandas as pd
 from datetime import datetime
 from model_registry import ModelRegistry
-from data.feature_engineering import engineer_features
-from models.severity_classifier import train_severity_model
-from models.duration_regressor import train_duration_model
-from models.closure_classifier import train_closure_model
-from models.export_models import export_and_test
 import json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,8 +40,15 @@ def retrain_models():
         
     # 4. Feature Engineering
     print("\nRunning Feature Engineering...")
+    # Lazy imports — only needed during retraining, not for get_status()
+    from data.feature_engineering import engineer_features
+    from models.severity_classifier import train_severity_model
+    from models.duration_regressor import train_duration_model
+    from models.closure_classifier import train_closure_model
+    from models.export_models import export_and_test
     import shutil
     import glob
+
     if os.path.exists(PROCESSED_DATA_PATH):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = os.path.join(BASE_DIR, '..', 'data', 'processed', f'cleaned_data_backup_{timestamp}.csv')
