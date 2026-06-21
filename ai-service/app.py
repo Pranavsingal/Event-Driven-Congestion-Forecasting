@@ -384,11 +384,48 @@ def trigger_retrain():
 
 @app.get("/model-status")
 def get_model_status():
+    """
+    Returns model version info by reading the version JSON file directly.
+    Does NOT import retrain or model_registry to avoid joblib dependency at cold start.
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    version_path = os.path.join(base_dir, '..', 'data', 'feedback', 'model_version.json')
+    processed_path = os.path.join(base_dir, '..', 'data', 'processed', 'cleaned_data.csv')
+    feedback_path = os.path.join(base_dir, '..', 'data', 'feedback', 'feedback_log.csv')
+
+    if os.path.exists(version_path):
+        try:
+            import json as _json
+            with open(version_path, 'r') as f:
+                return _json.load(f)
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse version info: {e}"}
+
+    # Default status — no retrain has happened yet
+    original_size = 0
     try:
-        from retrain import get_status
-        return get_status()
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+        df_ids = pd.read_csv(processed_path, usecols=['id'])
+        original_size = len(df_ids)
+    except Exception:
+        pass
+
+    feedback_size = 0
+    try:
+        if os.path.exists(feedback_path):
+            with open(feedback_path, 'r') as f:
+                feedback_size = max(0, sum(1 for _ in f) - 1)
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "modelVersion": 0,
+        "lastTrainedAt": "Initial — not yet retrained",
+        "trainingDataSize": original_size,
+        "feedbackCount": feedback_size,
+        "severity_accuracy": None,
+        "metrics": {}
+    }
 
 @app.get("/map", response_class=HTMLResponse)
 def get_map(
