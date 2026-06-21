@@ -2,7 +2,10 @@ import React from 'react';
 import { BarChart2, TrendingUp, Calendar, AlertTriangle, Layers } from 'lucide-react';
 
 export default function EdaInsights() {
-  const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+  const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 
+    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:8000'
+      : '/api/ai');
 
   const charts = [
     {

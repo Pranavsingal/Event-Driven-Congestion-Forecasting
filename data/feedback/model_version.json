@@ -1,0 +1,11 @@
+{
+    "modelVersion": 1,
+    "lastTrainedAt": "2026-06-19T17:48:09.018189Z",
+    "trainingDataSize": 8173,
+    "feedbackCount": 0,
+    "metrics": {
+        "severity_status": "retrained",
+        "duration_status": "retrained",
+        "closure_status": "retrained"
+    }
+}

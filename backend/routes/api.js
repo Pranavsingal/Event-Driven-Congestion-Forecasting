@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+<<<<<<< Updated upstream
 const fs = require('fs');
 const path = require('path');
 const { body, query, validationResult } = require('express-validator');
@@ -21,10 +22,24 @@ function getIncidentStatus(id, defaultStatus = 'pending') {
       return row ? row.status : defaultStatus;
   } catch (e) {
       return defaultStatus;
+=======
+const mongoose = require('mongoose');
+const Incident = require('../models/Incident');
+
+// Stateful in-memory stores for incidents (fallback)
+// Keys are incident IDs, values are status ('pending', 'dispatched', 'resolved')
+const incidentStatuses = {};
+
+// Helper to get or initialize incident status
+function getIncidentStatus(id, defaultStatus = 'pending') {
+  if (!incidentStatuses[id]) {
+    incidentStatuses[id] = defaultStatus;
+>>>>>>> Stashed changes
   }
 }
 
 // 1. GET /api/sectors - Fetch calculated sectors
+<<<<<<< Updated upstream
 router.get('/sectors', [
   query('timeOfDay').optional().isIn(['morning', 'midday', 'evening', 'night']),
   query('mode').optional().isIn(['reactive', 'predictive']),
@@ -36,6 +51,9 @@ router.get('/sectors', [
     return res.status(400).json({ errors: errors.array() });
   }
 
+=======
+router.get('/sectors', async (req, res) => {
+>>>>>>> Stashed changes
   const { timeOfDay = 'evening', event = 'none', mode = 'reactive', severity = 'all' } = req.query;
 
   // Base sectors setup
@@ -71,7 +89,31 @@ router.get('/sectors', [
   }
 
   // Apply event impact
-  const activeIncidents = getIncidentsList(event);
+  const list = getIncidentsList(event);
+  let activeIncidents = [];
+  
+  try {
+    const isConnected = mongoose.connection.readyState >= 1;
+    if (isConnected) {
+      activeIncidents = await Incident.find({ event });
+      if (activeIncidents.length === 0 && list.length > 0) {
+        // Seeding database
+        const toInsert = list.map(inc => ({ ...inc, event }));
+        activeIncidents = await Incident.insertMany(toInsert);
+      }
+    } else {
+      activeIncidents = list.map(inc => ({
+        ...inc,
+        status: getIncidentStatus(inc.id, inc.status)
+      }));
+    }
+  } catch (err) {
+    console.error("DB query in sectors endpoint failed, falling back to memory:", err);
+    activeIncidents = list.map(inc => ({
+      ...inc,
+      status: getIncidentStatus(inc.id, inc.status)
+    }));
+  }
   
   if (event === 'stadium_concert') {
     sectors[2].congestion += 38; 
@@ -94,8 +136,7 @@ router.get('/sectors', [
 
   // Apply active dispatches/resolutions mitigation effect
   activeIncidents.forEach(inc => {
-    const status = getIncidentStatus(inc.id, inc.status);
-    if (status === 'dispatched') {
+    if (inc.status === 'dispatched') {
       sectors.forEach(s => {
         if (s.id === inc.sector) {
           s.congestion = Math.max(10, s.congestion - 12);
@@ -131,10 +172,25 @@ router.get('/sectors', [
 });
 
 // 2. GET /api/incidents - Fetch list of active incidents
-router.get('/incidents', (req, res) => {
+router.get('/incidents', async (req, res) => {
   const { event = 'none' } = req.query;
   const list = getIncidentsList(event);
   
+  try {
+    const isConnected = mongoose.connection.readyState >= 1;
+    if (isConnected) {
+      let dbIncidents = await Incident.find({ event });
+      if (dbIncidents.length === 0 && list.length > 0) {
+        // Populate default database values
+        const toInsert = list.map(inc => ({ ...inc, event }));
+        dbIncidents = await Incident.insertMany(toInsert);
+      }
+      return res.json(dbIncidents);
+    }
+  } catch (err) {
+    console.error("DB incidents fetch error, falling back to memory:", err);
+  }
+
   // Map internal database status
   const mappedList = list.map(inc => ({
     ...inc,
@@ -145,14 +201,59 @@ router.get('/incidents', (req, res) => {
 });
 
 // 3. POST /api/dispatch - Dispatch or Resolve an incident unit
+<<<<<<< Updated upstream
 router.post('/dispatch', [
   body('incidentId').isString().notEmpty().withMessage('Missing incidentId in request body.')
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
+=======
+router.post('/dispatch', async (req, res) => {
+  const { incidentId } = req.body;
+  if (!incidentId) {
+    return res.status(400).json({ error: 'Missing incidentId in request body.' });
+>>>>>>> Stashed changes
   }
   const { incidentId } = req.body;
+
+  try {
+    const isConnected = mongoose.connection.readyState >= 1;
+    if (isConnected) {
+      let incident = await Incident.findOne({ id: incidentId });
+      if (!incident) {
+        const allDefaults = [
+          ...getIncidentsList('stadium_concert'),
+          ...getIncidentsList('derby_match'),
+          ...getIncidentsList('rain_storm'),
+          ...getIncidentsList('highway_maintenance')
+        ];
+        const defInc = allDefaults.find(i => i.id === incidentId);
+        if (defInc) {
+          const eventType = incidentId.split('-')[1] || 'none';
+          incident = new Incident({ ...defInc, event: eventType });
+        }
+      }
+      
+      if (incident) {
+        const currentStatus = incident.status;
+        let nextStatus = 'pending';
+
+        if (currentStatus === 'pending') {
+          nextStatus = 'dispatched';
+        } else {
+          nextStatus = 'resolved';
+        }
+
+        incident.status = nextStatus;
+        await incident.save();
+        console.log(`DB Incident ${incidentId} dispatch status transitioned to: ${nextStatus}`);
+        return res.json({ success: true, incidentId, status: nextStatus });
+      }
+    }
+  } catch (err) {
+    console.error("DB dispatch failed, falling back to memory:", err);
+  }
 
   const currentStatus = getIncidentStatus(incidentId, 'pending');
   let nextStatus = 'pending';
@@ -165,11 +266,16 @@ router.post('/dispatch', [
     nextStatus = 'resolved';
   }
 
+<<<<<<< Updated upstream
   const logId = `log-${Date.now()}`;
   db.prepare('INSERT INTO dispatch_log (id, incident_id, status, timestamp, operator) VALUES (?, ?, ?, ?, ?)')
     .run(logId, incidentId, nextStatus, new Date().toISOString(), 'system');
 
   console.log(`Incident ${incidentId} dispatch status transitioned to: ${nextStatus}`);
+=======
+  incidentStatuses[incidentId] = nextStatus;
+  console.log(`In-Memory Incident ${incidentId} dispatch status transitioned to: ${nextStatus}`);
+>>>>>>> Stashed changes
   
   // SSE Push
   broadcast('dispatch', { incidentId, status: nextStatus });
@@ -179,6 +285,7 @@ router.post('/dispatch', [
 
 // 4. POST /api/feedback - Forward feedback to AI service
 router.post('/feedback', async (req, res) => {
+<<<<<<< Updated upstream
   const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
   
   async function attemptFetch(retries = 1) {
@@ -199,6 +306,23 @@ router.post('/feedback', async (req, res) => {
         return attemptFetch(retries - 1);
       }
       throw err;
+=======
+  try {
+    const host = req.headers.host;
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || `${protocol}://${host}/api/ai`;
+    
+    // Dynamic import for fetch (node 18+)
+    const response = await fetch(`${aiServiceUrl}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: text });
+>>>>>>> Stashed changes
     }
   }
 

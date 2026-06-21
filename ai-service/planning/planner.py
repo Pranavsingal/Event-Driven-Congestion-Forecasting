@@ -130,8 +130,50 @@ def generate_plan(input_dict: dict) -> dict:
     
     # 2. Model Predictions
     if not registry.severity_model or not registry.duration_model or not registry.closure_model:
-        return {"error": "ML models are not loaded. Run training first."}
+        print("ModelRegistry joblib models not loaded. Attempting ONNX fallback...")
+        try:
+            import onnxruntime as ort
+            
+            s1_path = os.path.join(MODELS_DIR, 'model1.onnx')
+            s2_path = os.path.join(MODELS_DIR, 'model2.onnx')
+            s3_path = os.path.join(MODELS_DIR, 'model3.onnx')
+            
+            if not (os.path.exists(s1_path) and os.path.exists(s2_path) and os.path.exists(s3_path)):
+                return {"error": "ML models not loaded, and ONNX models not found."}
+                
+            s1_sess = ort.InferenceSession(s1_path)
+            s2_sess = ort.InferenceSession(s2_path)
+            s3_sess = ort.InferenceSession(s3_path)
+            
+            X_numpy = X.values.astype(np.float32)
+            
+            # Predict severity
+            sev_out = s1_sess.run(None, {s1_sess.get_inputs()[0].name: X_numpy})
+            sev_pred_idx = int(sev_out[0][0])
+            severity_label = registry.label_encoders['priority'].inverse_transform([sev_pred_idx])[0] if registry.label_encoders else "Medium"
+            
+            # Predict duration
+            dur_out = s2_sess.run(None, {s2_sess.get_inputs()[0].name: X_numpy})
+            dur_pred = max(0.0, float(dur_out[0][0][0]))
+            
+            # Predict closure
+            clos_out = s3_sess.run(None, {s3_sess.get_inputs()[0].name: X_numpy})
+            closure_pred = bool(clos_out[0][0])
+            
+        except Exception as onnx_err:
+            print(f"ONNX fallback failed: {onnx_err}")
+            return {"error": f"ML models are not loaded, and ONNX fallback failed: {onnx_err}"}
+    else:
+        sev_pred_idx = registry.severity_model.predict(X)[0]
+        # Reverse encode severity
+        severity_label = registry.label_encoders['priority'].inverse_transform([sev_pred_idx])[0] if registry.label_encoders else "Medium"
         
+        dur_pred = registry.duration_model.predict(X)[0]
+        dur_pred = max(0, float(dur_pred))
+        
+        closure_pred = bool(registry.closure_model.predict(X)[0])
+        
+<<<<<<< Updated upstream
     sev_pred_idx = registry.severity_model.predict(X)[0]
     # Reverse encode severity
     severity_label = registry.label_encoders['priority'].inverse_transform([sev_pred_idx])[0] if registry.label_encoders else "Medium"
@@ -160,6 +202,8 @@ def generate_plan(input_dict: dict) -> dict:
         except Exception as e:
             print("DL Inference skipped due to shape mismatch or error:", e)
 
+=======
+>>>>>>> Stashed changes
     # Early skip if duration is zero
     if round(dur_pred, 1) <= 0:
         return {
@@ -167,6 +211,7 @@ def generate_plan(input_dict: dict) -> dict:
             "reason": "Predicted duration is ~0 mins. No active response required."
         }
     
+<<<<<<< Updated upstream
     closure_pred = bool(registry.closure_model.predict(X)[0])
     
     # SHAP Explainability
@@ -187,6 +232,8 @@ def generate_plan(input_dict: dict) -> dict:
     except Exception as e:
         shap_explanation = {"error": "SHAP not available or failed"}
     
+=======
+>>>>>>> Stashed changes
     # 3. Historical Lookup
     event_cause = input_dict.get('event_cause', 'Unknown')
     corridor = input_dict.get('corridor', 'Unknown')

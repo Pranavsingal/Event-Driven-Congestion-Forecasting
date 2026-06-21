@@ -28,6 +28,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Strip /api/ai prefix for serverless compatibility on Vercel
+@app.middleware("http")
+async def remove_api_gateway_prefix(request, call_next):
+    path = request.scope.get("path", "")
+    if path.startswith("/api/ai"):
+        new_path = path[len("/api/ai"):]
+        if not new_path:
+            new_path = "/"
+        request.scope["path"] = new_path
+    
+    # Update raw_path in scope as well
+    raw_path = request.scope.get("raw_path", b"")
+    if raw_path.startswith(b"/api/ai"):
+        new_raw_path = raw_path[len(b"/api/ai"):]
+        if not new_raw_path:
+            new_raw_path = b"/"
+        request.scope["raw_path"] = new_raw_path
+        
+    return await call_next(request)
+
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "Gridlock AI Service API is running."}

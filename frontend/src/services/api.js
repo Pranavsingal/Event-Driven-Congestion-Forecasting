@@ -4,8 +4,15 @@
  * with the Express backend gateway and the Python FastAPI AI microservice.
  */
 
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5000/api';
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : '/api');
+
+const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000'
+    : '/api/ai');
 
 /**
  * Helper to handle fetch responses and handle HTTP errors

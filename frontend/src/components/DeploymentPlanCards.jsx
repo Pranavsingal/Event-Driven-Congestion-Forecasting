@@ -44,7 +44,10 @@ export default function DeploymentPlanCards({ planData, filters }) {
       day: filters?.day || 3,
       event: filters?.event || 'none'
     }).toString();
-    const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : '/api/ai');
     window.open(`${AI_SERVICE_URL}/pdf?${queryParams}`, '_blank');
   };
 

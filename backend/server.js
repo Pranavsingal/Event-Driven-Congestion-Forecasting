@@ -2,12 +2,17 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const connectDB = require('./config/db');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const start_time = Date.now();
 
 const { initialize } = require('./config/database');
 initialize();
+
+// Connect to MongoDB if MONGODB_URI is provided
+connectDB();
 
 // Enable CORS for frontend connection
 app.use(cors({
@@ -65,6 +70,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error', details: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`Gridlock Express backend running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Gridlock Express backend running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
