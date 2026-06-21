@@ -37,7 +37,9 @@ app.get('/api/health', async (req, res) => {
   let model_version = 0;
   
   try {
-    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
+    const host = req.headers.host;
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || `${protocol}://${host}/api/ai`;
     const response = await fetch(`${aiServiceUrl}/model-status`);
     if (response.ok) {
         ai_status = 'online';
