@@ -213,6 +213,7 @@ export default function Dashboard() {
               mapData={mapData} 
               diversions={diversionsData}
               onLocationUpdate={(newLocFilters) => {
+                console.log("Dashboard: onLocationUpdate called with:", newLocFilters);
                 setFilters(prev => ({
                   ...prev,
                   ...newLocFilters

@@ -92,6 +92,7 @@ export default function MapView({ sectors, incidents, filters, mapData, onLocati
   }, [isPinning]);
 
   const updateDashboardLocation = (lat, lng) => {
+    console.log("MapView: updateDashboardLocation called with lat:", lat, "lng:", lng);
     let nearestKey = null;
     let minDistance = Infinity;
     for (const key of Object.keys(LOCAL_JUNCTIONS)) {
@@ -103,25 +104,28 @@ export default function MapView({ sectors, incidents, filters, mapData, onLocati
       }
     }
 
+    console.log("MapView: nearestKey found:", nearestKey);
+
     if (nearestKey && onLocationUpdate) {
       const JUNCTION_MAPPING = {
         "silk board": { junction: "SilkBoardJunc", zone: "Downtown Core", corridor: "Hosur Road" },
         "adugodi": { junction: "AdugodiJunc", zone: "Downtown Core", corridor: "Hosur Road" },
-        "hebbal": { junction: "HebbalFlyoverJunc", zone: "Uptown Zone", corridor: "Bellary Road 1" },
+        "hebbal": { junction: "HebbalFlyoverJunc", zone: "North Zone 1", corridor: "Bellary Road 1" },
         "dairy circle": { junction: "DairyCircle", zone: "Downtown Core", corridor: "Bannerghata Road" },
-        "sony world": { junction: "SonyworldJunction", zone: "Downtown Core", corridor: "Old Airport Road" },
-        "hope farm": { junction: "HopefarmJunction", zone: "East Corridor", corridor: "Varthur Road" },
-        "trinity circle": { junction: "TrinityCircle", zone: "Downtown Core", corridor: "Old Madras Road" },
-        "agara": { junction: "AgaraJunction", zone: "Downtown Core", corridor: "ORR East 1" },
-        "mekhri circle": { junction: "MekhriCircle", zone: "Uptown Zone", corridor: "Bellary Road 1" },
+        "sony world": { junction: "SonyworldJunction", zone: "East Zone 1", corridor: "Old Airport Road" },
+        "hope farm": { junction: "HopefarmJunction", zone: "East Zone 1", corridor: "Varthur Road" },
+        "trinity circle": { junction: "TrinityCircle", zone: "Central Zone 1", corridor: "Old Madras Road" },
+        "agara": { junction: "AgaraJunction", zone: "South Zone 1", corridor: "ORR East 1" },
+        "mekhri circle": { junction: "MekhriCircle", zone: "North Zone 1", corridor: "Bellary Road 1" },
         "koramangala water tank": { junction: "KoramangalaWaterTankJunc", zone: "Downtown Core", corridor: "Hosur Road" },
-        "yeshwanthpur": { junction: "YeshwanthpuraCircle", zone: "Westside Zone", corridor: "Tumkur Road" },
-        "town hall": { junction: "TownhallJunction", zone: "Downtown Core", corridor: "CBD 1" },
-        "goruguntepalya": { junction: "GoruguntepalyaJunc", zone: "Westside Zone", corridor: "Tumkur Road" },
-        "richmond circle": { junction: "RichmondCircle", zone: "Downtown Core", corridor: "CBD 2" }
+        "yeshwanthpur": { junction: "YeshwanthpuraCircle", zone: "West Zone 1", corridor: "Tumkur Road" },
+        "town hall": { junction: "TownhallJunction", zone: "Central Zone 1", corridor: "CBD 1" },
+        "goruguntepalya": { junction: "GoruguntepalyaJunc", zone: "West Zone 1", corridor: "Tumkur Road" },
+        "richmond circle": { junction: "RichmondCircle", zone: "Central Zone 1", corridor: "CBD 2" }
       };
 
       const mappedFilters = JUNCTION_MAPPING[nearestKey];
+      console.log("MapView: mappedFilters:", mappedFilters);
       if (mappedFilters) {
         onLocationUpdate(mappedFilters);
       }

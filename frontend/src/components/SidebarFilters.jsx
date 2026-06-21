@@ -1,13 +1,55 @@
 import React from 'react';
 import { Sliders, Sparkles, Calendar, ShieldAlert } from 'lucide-react';
 
+const JUNCTION_RELATIONS = [
+  { junction: "SilkBoardJunc", zone: "Downtown Core", corridor: "Hosur Road" },
+  { junction: "AdugodiJunc", zone: "Downtown Core", corridor: "Hosur Road" },
+  { junction: "HebbalFlyoverJunc", zone: "North Zone 1", corridor: "Bellary Road 1" },
+  { junction: "DairyCircle", zone: "Downtown Core", corridor: "Bannerghata Road" },
+  { junction: "SonyworldJunction", zone: "East Zone 1", corridor: "Old Airport Road" },
+  { junction: "HopefarmJunction", zone: "East Zone 1", corridor: "Varthur Road" },
+  { junction: "TrinityCircle", zone: "Central Zone 1", corridor: "Old Madras Road" },
+  { junction: "AgaraJunction", zone: "South Zone 1", corridor: "ORR East 1" },
+  { junction: "MekhriCircle", zone: "North Zone 1", corridor: "Bellary Road 1" },
+  { junction: "KoramangalaWaterTankJunc", zone: "Downtown Core", corridor: "Hosur Road" },
+  { junction: "YeshwanthpuraCircle", zone: "West Zone 1", corridor: "Tumkur Road" },
+  { junction: "TownhallJunction", zone: "Central Zone 1", corridor: "CBD 1" },
+  { junction: "GoruguntepalyaJunc", zone: "West Zone 1", corridor: "Tumkur Road" },
+  { junction: "RichmondCircle", zone: "Central Zone 1", corridor: "CBD 2" }
+];
+
 export default function SidebarFilters({ filters, setFilters }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFilters(prev => {
+      let updated = { ...prev, [name]: value };
+
+      if (name === 'junction') {
+        const rel = JUNCTION_RELATIONS.find(r => r.junction === value);
+        if (rel) {
+          updated.corridor = rel.corridor;
+          updated.zone = rel.zone;
+        }
+      } else if (name === 'corridor') {
+        const rel = JUNCTION_RELATIONS.find(r => r.corridor === value);
+        if (rel) {
+          updated.junction = rel.junction;
+          updated.zone = rel.zone;
+        } else {
+          updated.junction = 'Unknown';
+        }
+      } else if (name === 'zone') {
+        const rel = JUNCTION_RELATIONS.find(r => r.zone === value);
+        if (rel) {
+          updated.junction = rel.junction;
+          updated.corridor = rel.corridor;
+        } else {
+          updated.junction = 'Unknown';
+        }
+      }
+
+      return updated;
+    });
   };
 
   const handleSyncLiveTime = () => {
@@ -263,10 +305,16 @@ export default function SidebarFilters({ filters, setFilters }) {
           >
             <option value="Downtown Core">Downtown Core</option>
             <option value="Central Zone 1">Central Zone 1</option>
+            <option value="Central Zone 2">Central Zone 2</option>
             <option value="East Zone 1">East Zone 1</option>
+            <option value="East Zone 2">East Zone 2</option>
             <option value="North Zone 1">North Zone 1</option>
+            <option value="North Zone 2">North Zone 2</option>
             <option value="South Zone 1">South Zone 1</option>
+            <option value="South Zone 2">South Zone 2</option>
             <option value="West Zone 1">West Zone 1</option>
+            <option value="West Zone 2">West Zone 2</option>
+            <option value="Unknown">Other / Unknown Zone</option>
           </select>
         </div>
 
@@ -283,11 +331,20 @@ export default function SidebarFilters({ filters, setFilters }) {
             style={{ width: '100%', borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
           >
             <option value="SilkBoardJunc">Silk Board Junction</option>
+            <option value="AdugodiJunc">Adugodi Junction</option>
             <option value="HebbalFlyoverJunc">Hebbal Flyover Junction</option>
-            <option value="TrinityCircle">Trinity Circle Junction</option>
             <option value="DairyCircle">Dairy Circle Junction</option>
-            <option value="YeshwanthpuraCircle">Yeshwanthpura Circle</option>
+            <option value="SonyworldJunction">Sony World Junction Koramangala</option>
+            <option value="HopefarmJunction">Hope Farm Junction Whitefield</option>
+            <option value="TrinityCircle">Trinity Circle Junction</option>
             <option value="AgaraJunction">Agara Junction</option>
+            <option value="MekhriCircle">Mekhri Circle</option>
+            <option value="KoramangalaWaterTankJunc">Koramangala Water Tank Junction</option>
+            <option value="YeshwanthpuraCircle">Yeshwanthpura Circle</option>
+            <option value="TownhallJunction">Town Hall Junction</option>
+            <option value="GoruguntepalyaJunc">Goruguntepalya Junction</option>
+            <option value="RichmondCircle">Richmond Circle</option>
+            <option value="Unknown">Other / Unknown Junction</option>
           </select>
         </div>
 
