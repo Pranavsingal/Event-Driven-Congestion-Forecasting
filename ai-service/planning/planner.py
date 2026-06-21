@@ -173,20 +173,9 @@ def generate_plan(input_dict: dict) -> dict:
         
         closure_pred = bool(registry.closure_model.predict(X)[0])
         
-<<<<<<< Updated upstream
-    sev_pred_idx = registry.severity_model.predict(X)[0]
-    # Reverse encode severity
-    severity_label = registry.label_encoders['priority'].inverse_transform([sev_pred_idx])[0] if registry.label_encoders else "Medium"
-    
-    dur_pred = registry.duration_model.predict(X)[0]
-    dur_pred = max(0, float(dur_pred))
-    
     # DL Model Inference & Ensemble
     dl_comparison = None
     if dl_session:
-        # ONNX requires float32 inputs
-        # X needs to match the exact schema used for DL. Since we added cyclic features,
-        # we assume DL model doesn't use them or was retrained with them.
         try:
             dl_input = {dl_session.get_inputs()[0].name: X.values.astype(np.float32)}
             dl_dur_pred = float(dl_session.run(None, dl_input)[0][0][0])
@@ -202,8 +191,6 @@ def generate_plan(input_dict: dict) -> dict:
         except Exception as e:
             print("DL Inference skipped due to shape mismatch or error:", e)
 
-=======
->>>>>>> Stashed changes
     # Early skip if duration is zero
     if round(dur_pred, 1) <= 0:
         return {
@@ -211,29 +198,8 @@ def generate_plan(input_dict: dict) -> dict:
             "reason": "Predicted duration is ~0 mins. No active response required."
         }
     
-<<<<<<< Updated upstream
-    closure_pred = bool(registry.closure_model.predict(X)[0])
+    shap_explanation = {"error": "SHAP not available"}
     
-    # SHAP Explainability
-    shap_explanation = {}
-    try:
-        explainer = registry.shap_explainer
-        if explainer:
-            shap_values = explainer.shap_values(X)
-            feature_names = X.columns
-            # Get top 3 driving features
-            vals = np.abs(shap_values[0])
-            top_idx = np.argsort(vals)[-3:][::-1]
-            top_features = [feature_names[i] for i in top_idx]
-            shap_explanation = {
-                "base_value": round(float(explainer.expected_value), 1),
-                "top_drivers": top_features
-            }
-    except Exception as e:
-        shap_explanation = {"error": "SHAP not available or failed"}
-    
-=======
->>>>>>> Stashed changes
     # 3. Historical Lookup
     event_cause = input_dict.get('event_cause', 'Unknown')
     corridor = input_dict.get('corridor', 'Unknown')
