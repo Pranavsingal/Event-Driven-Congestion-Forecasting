@@ -23,4 +23,6 @@ Thumbs.db
 .vercel
 _uv/
 test_pdf_download.pdf
+**/uv.lock
+
 

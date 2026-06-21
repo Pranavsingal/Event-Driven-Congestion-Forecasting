@@ -16,3 +16,5 @@ outputs/models/*.pth
 *.pptx
 .vercel
 _uv
+**/uv.lock
+
