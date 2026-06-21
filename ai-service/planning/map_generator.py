@@ -16,7 +16,14 @@ def get_location_coordinates(junction_name=None, zone_name=None, corridor_name=N
     """
     default_coords = [12.9716, 77.5946]
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
+        import sys, os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
+        from model_registry import ModelRegistry
+        registry = ModelRegistry.get_instance()
+        if getattr(registry, 'historical_data', None) is not None:
+            df = registry.historical_data
+        else:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
     except Exception as e:
         print(f"Error loading dataset in map_generator: {e}")
         return default_coords
@@ -143,7 +150,12 @@ def generate_interactive_map(filters: dict) -> str:
     # Try to extract route path from dataset, fallback to generated route
     route_drawn = False
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
+        from model_registry import ModelRegistry
+        registry = ModelRegistry.get_instance()
+        if getattr(registry, 'historical_data', None) is not None:
+            df = registry.historical_data
+        else:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
         # Search for a route path on this corridor or matching this event cause
         route_matches = df[(df['corridor'].str.lower() == str(corridor).lower()) & (df['route_path'].notna())]
         if len(route_matches) == 0:
@@ -192,7 +204,12 @@ def generate_interactive_map(filters: dict) -> str:
 
     # 5. Add Historical Heatmap Layer
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
+        from model_registry import ModelRegistry
+        registry = ModelRegistry.get_instance()
+        if getattr(registry, 'historical_data', None) is not None:
+            df = registry.historical_data
+        else:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
         # Filter historical locations matching the same cause to show clustering
         hist_df = df[df['event_cause'].str.lower() == str(cause).lower()]
         if len(hist_df) < 5:
@@ -332,6 +349,7 @@ def get_map_coordinates(filters: dict) -> dict:
         
     barricades = []
     try:
+        raise ImportError("Skipping OSRM barricades for speed")
         from routing.osrm_client import get_intersection_points
         # Get actual road intersection points around center
         intersect_pts = get_intersection_points(center_coords[0], center_coords[1], radius_km=0.3, num_points=barricades_count)
@@ -416,7 +434,12 @@ def get_map_coordinates(filters: dict) -> dict:
     # 4. Heatmap coordinates (Historical incidents coordinates matching cause)
     heatmap = []
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
+        from model_registry import ModelRegistry
+        registry = ModelRegistry.get_instance()
+        if getattr(registry, 'historical_data', None) is not None:
+            df = registry.historical_data
+        else:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
         hist_df = df[df['event_cause'].str.lower() == str(cause).lower()]
         if len(hist_df) < 5:
             hist_df = df.head(300)

@@ -11,7 +11,8 @@ def prepare_data(df: pd.DataFrame):
         'event_cause_encoded', 'veh_type_encoded', 'corridor_encoded', 
         'zone_encoded', 'junction_encoded', 'start_hour', 
         'start_weekday', 'start_month', 'start_day_of_year',
-        'is_peak_hour', 'lat_cluster'
+        'is_peak_hour', 'lat_cluster',
+        'sin_hour', 'cos_hour', 'sin_day', 'cos_day'
     ]
     
     X_cols = [col for col in feature_cols if col in df.columns]

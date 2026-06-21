@@ -48,16 +48,16 @@ def export_and_test():
     # 2. Export to ONNX
     print("\n2. Exporting to ONNX...")
     if convert_sklearn and convert_xgboost:
-        # Dummy input type for scikit-learn / xgboost models (11 features)
-        initial_type = [('float_input', FloatTensorType([None, 11]))]
+        # Dummy input type for scikit-learn / xgboost models (15 features)
+        initial_type = [('float_input', FloatTensorType([None, 15]))]
         
         # model1 (XGBoost Classifier)
         try:
             from onnxmltools.convert.common.data_types import FloatTensorType as XgbFloatTensorType
-            xgb_initial_type = [('float_input', XgbFloatTensorType([None, 11]))]
+            xgb_initial_type = [('float_input', XgbFloatTensorType([None, 15]))]
             
             m1 = joblib.load(os.path.join(outputs_dir, 'model1.pkl'))
-            m1.get_booster().feature_names = [f"f{i}" for i in range(11)]
+            m1.get_booster().feature_names = [f"f{i}" for i in range(15)]
             onnx1 = convert_xgboost(m1, initial_types=xgb_initial_type, target_opset=14)
             with open(os.path.join(outputs_dir, 'model1.onnx'), "wb") as f:
                 f.write(onnx1.SerializeToString())
@@ -68,7 +68,7 @@ def export_and_test():
         # model2 (XGBoost Regressor)
         try:
             m2 = joblib.load(os.path.join(outputs_dir, 'model2.pkl'))
-            m2.get_booster().feature_names = [f"f{i}" for i in range(11)]
+            m2.get_booster().feature_names = [f"f{i}" for i in range(15)]
             onnx2 = convert_xgboost(m2, initial_types=xgb_initial_type, target_opset=14)
             with open(os.path.join(outputs_dir, 'model2.onnx'), "wb") as f:
                 f.write(onnx2.SerializeToString())
@@ -90,10 +90,10 @@ def export_and_test():
     dl_path = os.path.join(outputs_dir, 'dl_duration_model.pth')
     if os.path.exists(dl_path):
         try:
-            model_dl = DurationMLP(11)
+            model_dl = DurationMLP(15)
             model_dl.load_state_dict(torch.load(dl_path))
             model_dl.eval()
-            dummy_input = torch.randn(1, 11)
+            dummy_input = torch.randn(1, 15)
             onnx_dl_path = os.path.join(outputs_dir, 'dl_duration_model.onnx')
             torch.onnx.export(model_dl, dummy_input, onnx_dl_path, 
                               input_names=['input'], output_names=['output'])

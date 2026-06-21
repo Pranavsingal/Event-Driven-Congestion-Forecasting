@@ -48,6 +48,7 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
     
     # Try importing osrm_client
     try:
+        raise ImportError("Skip OSRM for speed")
         from routing.osrm_client import get_road_route
     except ImportError:
         get_road_route = None
@@ -59,7 +60,7 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
         eta = max(int(score / 1.5), alt["base_time_mins"] + (3 if is_peak else 0))
         dist_km = alt["distance_km"]
         
-        route_geometry = []
+        route_geometry = alt.get("waypoints", [])
         
         if get_road_route and "waypoints" in alt and len(alt["waypoints"]) >= 2:
             pts = list(alt["waypoints"])

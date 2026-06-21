@@ -4,6 +4,10 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const start_time = Date.now();
+
+const { initialize } = require('./config/database');
+initialize();
 
 // Enable CORS for frontend connection
 app.use(cors({
@@ -21,6 +25,38 @@ app.use('/api', apiRoutes);
 // Root test endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'Gridlock Express Dispatch Backend is online.' });
+});
+
+// Health endpoint
+app.get('/api/health', async (req, res) => {
+  const uptime = Math.floor((Date.now() - start_time) / 1000);
+  let ai_status = 'offline';
+  let severity_accuracy = 'Unknown';
+  let model_version = 0;
+  
+  try {
+    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
+    const response = await fetch(`${aiServiceUrl}/model-status`);
+    if (response.ok) {
+        ai_status = 'online';
+        const data = await response.json();
+        model_version = data.modelVersion || 0;
+        if (data.severity_accuracy) {
+            severity_accuracy = `${(data.severity_accuracy * 100).toFixed(1)}%`;
+        }
+    }
+  } catch (err) {
+      // ignore
+  }
+
+  res.json({
+    express: "online",
+    ai_service: ai_status,
+    db: "online",
+    uptime_seconds: uptime,
+    model_version: model_version,
+    severity_accuracy: severity_accuracy
+  });
 });
 
 // Global error handler

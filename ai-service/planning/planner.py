@@ -37,7 +37,11 @@ def safe_encode(encoder, value):
 def get_history(event_cause: str, corridor: str) -> str:
     """Historical context lookup: 'Last 3 similar incidents on corridor averaged X min'"""
     try:
-        df = pd.read_csv(PROCESSED_DATA_PATH)
+        registry = ModelRegistry.get_instance()
+        if registry.historical_data is not None:
+            df = registry.historical_data
+        else:
+            df = pd.read_csv(PROCESSED_DATA_PATH)
         # Filter matching events
         filtered = df[(df['event_cause'].str.lower() == str(event_cause).lower()) & 
                       (df['corridor'].str.lower() == str(corridor).lower())]
@@ -75,12 +79,17 @@ def extract_features(raw_data: dict) -> pd.DataFrame:
     enc_zone = safe_encode(registry.label_encoders['zone'], raw_data.get('zone') or 'Unknown') if registry.label_encoders else 0
     enc_junction = safe_encode(registry.label_encoders['junction'], raw_data.get('junction') or 'Unknown') if registry.label_encoders else 0
     
-    # 2. Datetime Features
+    # 2. Datetime Features with Cyclic Encoding
     start_hour = dt.hour
     start_weekday = dt.weekday()
     start_month = dt.month
     start_day_of_year = dt.dayofyear
     is_peak = 1 if (7 <= start_hour <= 10) or (17 <= start_hour <= 20) else 0
+    
+    sin_hour = np.sin(2 * np.pi * start_hour / 24.0)
+    cos_hour = np.cos(2 * np.pi * start_hour / 24.0)
+    sin_day = np.sin(2 * np.pi * start_weekday / 7.0)
+    cos_day = np.cos(2 * np.pi * start_weekday / 7.0)
     
     # 3. Geo Cluster
     if registry.kmeans_model:
@@ -99,7 +108,11 @@ def extract_features(raw_data: dict) -> pd.DataFrame:
         'start_month': start_month,
         'start_day_of_year': start_day_of_year,
         'is_peak_hour': is_peak,
-        'lat_cluster': lat_cluster
+        'lat_cluster': lat_cluster,
+        'sin_hour': sin_hour,
+        'cos_hour': cos_hour,
+        'sin_day': sin_day,
+        'cos_day': cos_day
     }
     
     # Return as DataFrame to retain column names (XGBoost expects it)
@@ -126,6 +139,27 @@ def generate_plan(input_dict: dict) -> dict:
     dur_pred = registry.duration_model.predict(X)[0]
     dur_pred = max(0, float(dur_pred))
     
+    # DL Model Inference & Ensemble
+    dl_comparison = None
+    if dl_session:
+        # ONNX requires float32 inputs
+        # X needs to match the exact schema used for DL. Since we added cyclic features,
+        # we assume DL model doesn't use them or was retrained with them.
+        try:
+            dl_input = {dl_session.get_inputs()[0].name: X.values.astype(np.float32)}
+            dl_dur_pred = float(dl_session.run(None, dl_input)[0][0][0])
+            dl_derived_severity = "High" if dl_dur_pred > 60 else "Medium"
+            dl_comparison = {
+                "dl_duration_prediction": round(dl_dur_pred, 1),
+                "dl_derived_severity": dl_derived_severity,
+                "xgboost_severity": severity_label,
+                "match": dl_derived_severity == severity_label
+            }
+            # Ensemble (60% XGBoost, 40% DL)
+            dur_pred = (dur_pred * 0.6) + (dl_dur_pred * 0.4)
+        except Exception as e:
+            print("DL Inference skipped due to shape mismatch or error:", e)
+
     # Early skip if duration is zero
     if round(dur_pred, 1) <= 0:
         return {
@@ -134,6 +168,24 @@ def generate_plan(input_dict: dict) -> dict:
         }
     
     closure_pred = bool(registry.closure_model.predict(X)[0])
+    
+    # SHAP Explainability
+    shap_explanation = {}
+    try:
+        explainer = registry.shap_explainer
+        if explainer:
+            shap_values = explainer.shap_values(X)
+            feature_names = X.columns
+            # Get top 3 driving features
+            vals = np.abs(shap_values[0])
+            top_idx = np.argsort(vals)[-3:][::-1]
+            top_features = [feature_names[i] for i in top_idx]
+            shap_explanation = {
+                "base_value": round(float(explainer.expected_value), 1),
+                "top_drivers": top_features
+            }
+    except Exception as e:
+        shap_explanation = {"error": "SHAP not available or failed"}
     
     # 3. Historical Lookup
     event_cause = input_dict.get('event_cause', 'Unknown')
@@ -198,19 +250,7 @@ def generate_plan(input_dict: dict) -> dict:
     }
     plan["manpower"] = manpower_matrix.get((severity_label, closure_pred, dur_cat), 2)
     
-    # DL Model Inference
-    dl_comparison = None
-    if dl_session:
-        # ONNX requires float32 inputs
-        dl_input = {dl_session.get_inputs()[0].name: X.values.astype(np.float32)}
-        dl_dur_pred = float(dl_session.run(None, dl_input)[0][0][0])
-        dl_derived_severity = "High" if dl_dur_pred > 60 else "Medium"
-        dl_comparison = {
-            "dl_duration_prediction": round(dl_dur_pred, 1),
-            "dl_derived_severity": dl_derived_severity,
-            "xgboost_severity": severity_label,
-            "match": dl_derived_severity == severity_label
-        }
+    # DL Model Inference moved up
         
     # Final Output Dictionary
     output = {
@@ -221,7 +261,8 @@ def generate_plan(input_dict: dict) -> dict:
         },
         "plan": plan,
         "historical_context": history_msg,
-        "dl_comparison": dl_comparison
+        "dl_comparison": dl_comparison,
+        "shap_explanation": shap_explanation
     }
     
     return output

@@ -49,6 +49,26 @@ class ModelRegistry:
         except Exception as e:
             print(f"Warning: Could not load kmeans_model.pkl: {e}")
 
+        # Cache historical data to avoid reading CSV on every API request
+        processed_path = os.path.join(base_dir, '..', 'data', 'processed', 'cleaned_data.csv')
+        try:
+            import pandas as pd
+            self.historical_data = pd.read_csv(processed_path)
+            print("ModelRegistry: Cached historical data.")
+        except Exception as e:
+            self.historical_data = None
+            print(f"Warning: Could not cache cleaned_data.csv: {e}")
+
+        # Cache SHAP explainer to avoid rebuilding the tree on every request
+        self.shap_explainer = None
+        if self.duration_model is not None:
+            try:
+                import shap
+                self.shap_explainer = shap.TreeExplainer(self.duration_model)
+                print("ModelRegistry: Cached SHAP TreeExplainer.")
+            except Exception as e:
+                print(f"Warning: Could not initialize SHAP Explainer: {e}")
+
     @classmethod
     def reload(cls):
         if cls._instance is not None:

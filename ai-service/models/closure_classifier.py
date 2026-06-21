@@ -2,7 +2,7 @@ import os
 import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from models.data_prep import get_train_test_splits
 
 def train_closure_model():
@@ -29,6 +29,7 @@ def train_closure_model():
     
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='macro')
     
     print(f"\nModel Accuracy: {accuracy * 100:.2f}%")
     
@@ -38,7 +39,7 @@ def train_closure_model():
     
     joblib.dump(model, model_path)
     print(f"Model successfully saved to {model_path}")
-    return model
+    return model, accuracy, f1
 
 if __name__ == "__main__":
     train_closure_model()

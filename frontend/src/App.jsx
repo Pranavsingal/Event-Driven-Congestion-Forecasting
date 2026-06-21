@@ -52,7 +52,7 @@ export default function App() {
           </div>
           <div>
             <h1 style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-primary)', margin: 0, letterSpacing: '-0.02em', color: 'var(--primary)' }}>
-              GRIDLOCK
+              FLOWGUARD
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--success)' }}>
               <span className="pulse-dot"></span>
@@ -171,7 +171,7 @@ export default function App() {
         fontSize: '12px', 
         color: 'var(--text-muted)'
       }}>
-        Gridlock Operations Control System &copy; {new Date().getFullYear()} &bull; Urban Infrastructure Gateway
+        FlowGuard Operations Control System &copy; {new Date().getFullYear()} &bull; Urban Infrastructure Gateway
       </footer>
 
     </div>

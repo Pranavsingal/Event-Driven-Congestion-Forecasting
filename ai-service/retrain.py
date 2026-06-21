@@ -45,20 +45,30 @@ def retrain_models():
         
     # 4. Feature Engineering
     print("\nRunning Feature Engineering...")
-    # Engineer features modifies cleaned_data.csv, we should back it up or overwrite it.
-    # It will save the new cleaned_data.csv and label encoders
-    # Wait, engineer_features reads its argument df and saves it to data/processed/cleaned_data.csv
+    import shutil
+    import glob
+    if os.path.exists(PROCESSED_DATA_PATH):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(BASE_DIR, '..', 'data', 'processed', f'cleaned_data_backup_{timestamp}.csv')
+        shutil.copy2(PROCESSED_DATA_PATH, backup_path)
+        # Keep only the last 3 backups
+        backups = sorted(glob.glob(os.path.join(BASE_DIR, '..', 'data', 'processed', 'cleaned_data_backup_*.csv')))
+        if len(backups) > 3:
+            for old_backup in backups[:-3]:
+                try: os.remove(old_backup)
+                except: pass
+
     processed_df = engineer_features(merged_df)
     
     # 5, 6, 7. Train models
     print("\nTraining Severity Model...")
-    m1 = train_severity_model()
+    m1, severity_acc = train_severity_model()
     
     print("\nTraining Duration Model...")
-    m2 = train_duration_model()
+    m2, duration_rmse = train_duration_model()
     
     print("\nTraining Closure Model...")
-    m3 = train_closure_model()
+    m3, closure_acc, closure_f1 = train_closure_model()
     
     # 8, 9. Export
     print("\nExporting Models...")
@@ -74,6 +84,10 @@ def retrain_models():
         "lastTrainedAt": datetime.now().isoformat() + "Z",
         "trainingDataSize": len(processed_df),
         "feedbackCount": len(feedback_df),
+        "severity_accuracy": float(severity_acc),
+        "closure_accuracy": float(closure_acc),
+        "closure_f1_macro": float(closure_f1),
+        "duration_rmse": float(duration_rmse),
         "metrics": {
             "severity_status": "retrained",
             "duration_status": "retrained",

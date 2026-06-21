@@ -1,6 +1,6 @@
-# Gridlock - Event-Driven Congestion Forecasting
+# FlowGuard AI - Event-Driven Congestion Forecasting
 
-Gridlock is an event-driven congestion forecasting and traffic management system. The platform integrates a Python-based machine learning prediction engine, an Express dispatch backend, and a real-time React analytics control center dashboard. 
+FlowGuard AI is a full-stack, AI-powered Traffic Management Dashboard built to predict congestion duration, evaluate incident severity, and recommend tactical dispatch strategies for city administrators and traffic enforcement agencies.
 
 It predicts urban traffic bottlenecks triggered by local events (e.g., stadium concerts, sports matches, or severe weather) and suggests proactive route diversions.
 

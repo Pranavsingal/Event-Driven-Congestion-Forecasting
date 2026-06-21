@@ -44,7 +44,7 @@ def train_severity_model():
     
     joblib.dump(model, model_path)
     print(f"Model successfully saved to {model_path}")
-    return model
+    return model, accuracy
 
 if __name__ == "__main__":
     train_severity_model()

@@ -37,12 +37,22 @@ def run_cross_validation():
             mask1 = y1.notna()
             X1, y1_clean = X[mask1], y1[mask1]
             
-            model_sev = XGBClassifier(n_estimators=200, max_depth=5, random_state=42, eval_metric='mlogloss')
-            # Stratified KFold for classification
-            cv_sev = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-            scores_sev = cross_val_score(model_sev, X1, y1_clean, cv=cv_sev, scoring='accuracy', n_jobs=-1)
+            from sklearn.model_selection import GridSearchCV
+            param_grid = {
+                'n_estimators': [100, 200],
+                'max_depth': [3, 5]
+            }
+            base_model_sev = XGBClassifier(random_state=42, eval_metric='mlogloss')
+            cv_sev = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+            grid_search = GridSearchCV(estimator=base_model_sev, param_grid=param_grid, cv=cv_sev, scoring='accuracy', n_jobs=-1)
+            grid_search.fit(X1, y1_clean)
             
-            res_sev = f"Severity Classifier (XGBoost) Accuracy: {scores_sev.mean():.4f} ± {scores_sev.std():.4f}"
+            best_model_sev = grid_search.best_estimator_
+            print(f"Best params for Severity Classifier: {grid_search.best_params_}")
+            
+            scores_sev = cross_val_score(best_model_sev, X1, y1_clean, cv=cv_sev, scoring='accuracy', n_jobs=-1)
+            
+            res_sev = f"Severity Classifier (XGBoost) Accuracy: {scores_sev.mean():.4f} ± {scores_sev.std():.4f} (Best Params: {grid_search.best_params_})"
             print(res_sev)
             f.write(res_sev + "\n")
             

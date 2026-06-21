@@ -37,7 +37,7 @@ def train_duration_model():
     
     joblib.dump(model, model_path)
     print(f"\nModel successfully saved to {model_path}")
-    return model
+    return model, rmse
 
 if __name__ == "__main__":
     train_duration_model()

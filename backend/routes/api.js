@@ -1,20 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
+const { body, query, validationResult } = require('express-validator');
+const { db } = require('../config/database');
 
-// Stateful in-memory stores for incidents
-// Keys are incident IDs, values are status ('pending', 'dispatched', 'resolved')
-const incidentStatuses = {};
-
-// Helper to get or initialize incident status
-function getIncidentStatus(id, defaultStatus = 'pending') {
-  if (!incidentStatuses[id]) {
-    incidentStatuses[id] = defaultStatus;
+// --- SSE Setup ---
+const clients = new Set();
+function broadcast(event, data) {
+  for (const client of clients) {
+    client.write(`event: ${event}\n`);
+    client.write(`data: ${JSON.stringify(data)}\n\n`);
   }
-  return incidentStatuses[id];
+}
+
+// Helper to get incident status from SQLite
+function getIncidentStatus(id, defaultStatus = 'pending') {
+  try {
+      const row = db.prepare('SELECT status FROM dispatch_log WHERE incident_id = ? ORDER BY timestamp DESC LIMIT 1').get(id);
+      return row ? row.status : defaultStatus;
+  } catch (e) {
+      return defaultStatus;
+  }
 }
 
 // 1. GET /api/sectors - Fetch calculated sectors
-router.get('/sectors', (req, res) => {
+router.get('/sectors', [
+  query('timeOfDay').optional().isIn(['morning', 'midday', 'evening', 'night']),
+  query('mode').optional().isIn(['reactive', 'predictive']),
+  query('severity').optional().isIn(['all', 'heavy', 'moderate', 'low']),
+  query('event').optional()
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { timeOfDay = 'evening', event = 'none', mode = 'reactive', severity = 'all' } = req.query;
 
   // Base sectors setup
@@ -124,11 +145,14 @@ router.get('/incidents', (req, res) => {
 });
 
 // 3. POST /api/dispatch - Dispatch or Resolve an incident unit
-router.post('/dispatch', (req, res) => {
-  const { incidentId } = req.body;
-  if (!incidentId) {
-    return res.status(400).json({ error: 'Missing incidentId in request body.' });
+router.post('/dispatch', [
+  body('incidentId').isString().notEmpty().withMessage('Missing incidentId in request body.')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
+  const { incidentId } = req.body;
 
   const currentStatus = getIncidentStatus(incidentId, 'pending');
   let nextStatus = 'pending';
@@ -141,35 +165,129 @@ router.post('/dispatch', (req, res) => {
     nextStatus = 'resolved';
   }
 
-  incidentStatuses[incidentId] = nextStatus;
+  const logId = `log-${Date.now()}`;
+  db.prepare('INSERT INTO dispatch_log (id, incident_id, status, timestamp, operator) VALUES (?, ?, ?, ?, ?)')
+    .run(logId, incidentId, nextStatus, new Date().toISOString(), 'system');
+
   console.log(`Incident ${incidentId} dispatch status transitioned to: ${nextStatus}`);
   
+  // SSE Push
+  broadcast('dispatch', { incidentId, status: nextStatus });
+
   res.json({ success: true, incidentId, status: nextStatus });
 });
 
 // 4. POST /api/feedback - Forward feedback to AI service
 router.post('/feedback', async (req, res) => {
-  try {
-    const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
-    
-    // Dynamic import for fetch (node 18+)
-    const response = await fetch(`${aiServiceUrl}/feedback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      return res.status(response.status).json({ error: text });
+  const aiServiceUrl = process.env.VITE_AI_SERVICE_URL || 'http://127.0.0.1:8000';
+  
+  async function attemptFetch(retries = 1) {
+    try {
+      const response = await fetch(`${aiServiceUrl}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body)
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+      return await response.json();
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 500));
+        return attemptFetch(retries - 1);
+      }
+      throw err;
     }
-    
-    const data = await response.json();
+  }
+
+  try {
+    const data = await attemptFetch(1);
     res.json(data);
   } catch (err) {
     console.error("Failed to forward feedback to AI Service:", err);
-    res.status(500).json({ error: "Failed to connect to AI service" });
+    // Queue locally
+    const queuePath = path.join(__dirname, '..', 'feedback_queue.json');
+    const queue = fs.existsSync(queuePath) ? JSON.parse(fs.readFileSync(queuePath)) : [];
+    queue.push({ payload: req.body, timestamp: new Date().toISOString() });
+    fs.writeFileSync(queuePath, JSON.stringify(queue, null, 2));
+    
+    res.status(200).json({ success: false, error: "AI service unavailable — feedback queued locally" });
   }
+});
+
+// 5. GET /api/history - Historical dispatch records
+router.get('/history', [
+  query('limit').optional().isInt({ min: 1, max: 200 }).toInt(),
+  query('severity').optional().isIn(['all', 'High', 'Critical', 'Moderate', 'Low', ''])
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  const limit = req.query.limit || 50;
+  const severity = req.query.severity && req.query.severity !== 'all' ? req.query.severity : null;
+
+  let queryStr = 'SELECT * FROM incident_history';
+  const params = [];
+  
+  if (severity) {
+    queryStr += ' WHERE severity = ?';
+    params.push(severity);
+  }
+  queryStr += ' ORDER BY reported_at DESC LIMIT ?';
+  params.push(limit);
+
+  const rows = db.prepare(queryStr).all(...params);
+  res.json(rows);
+});
+
+// 6. GET /api/stream - SSE Endpoint
+router.get('/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  clients.add(res);
+
+  req.on('close', () => {
+    clients.delete(res);
+  });
+});
+
+// Broadcast sectors every 5 seconds
+setInterval(() => {
+    if (clients.size > 0) {
+        // Just broadcast a trigger, frontend can fetch or we can send the data
+        broadcast('sectors', { updated: true });
+    }
+}, 5000);
+
+// --- Simulation Background Task ---
+let simulationInterval = null;
+
+router.post('/simulation/start', (req, res) => {
+    if (simulationInterval) {
+        return res.json({ success: true, message: 'Simulation already running' });
+    }
+    simulationInterval = setInterval(() => {
+        const fakeIncidentId = `sim-${Date.now()}`;
+        console.log(`Generated synthetic incident: ${fakeIncidentId}`);
+        broadcast('dispatch', { incidentId: fakeIncidentId, status: 'pending', synthetic: true });
+    }, Math.floor(Math.random() * (120000 - 30000 + 1) + 30000));
+    
+    res.json({ success: true, message: 'Simulation started' });
+});
+
+router.post('/simulation/stop', (req, res) => {
+    if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+    }
+    res.json({ success: true, message: 'Simulation stopped' });
 });
 
 // Helper incidents resolver based on event type

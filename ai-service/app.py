@@ -33,9 +33,15 @@ def read_root():
     return {"status": "online", "message": "Gridlock AI Service API is running."}
 
 def get_historical_insights(zone: str, cause: str) -> dict:
-    processed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'processed', 'cleaned_data.csv')
     try:
-        df = pd.read_csv(processed_path)
+        from model_registry import ModelRegistry
+        registry = ModelRegistry.get_instance()
+        if getattr(registry, 'historical_data', None) is not None:
+            df = registry.historical_data
+        else:
+            processed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'processed', 'cleaned_data.csv')
+            df = pd.read_csv(processed_path)
+            
         zone_matches = df[df['zone'].str.lower() == zone.lower()]
         if len(zone_matches) == 0:
             zone_matches = df
@@ -90,14 +96,23 @@ def predict(
 ):
     # Map frontend query parameters to model raw features
     # Map 'cause' parameter to 'event_cause' which is expected by the extract_features function
+    from planning.junction_db import JUNCTION_DATABASE
+    lat = 12.9716
+    lng = 77.5946
+    if junction in JUNCTION_DATABASE:
+        lat = JUNCTION_DATABASE[junction]["latitude"]
+        lng = JUNCTION_DATABASE[junction]["longitude"]
+    elif junction.lower() != "none" and junction != "":
+        print(f"Warning: Junction '{junction}' not found in DB. Falling back to default coordinates.")
+
     raw_input = {
         "event_cause": cause,
         "veh_type": veh_type,
         "corridor": corridor,
         "zone": zone,
         "junction": junction,
-        "latitude": 12.9716, # default coordinates
-        "longitude": 77.5946,
+        "latitude": lat,
+        "longitude": lng,
         "is_junction": (junction.lower() != "none" and junction != ""),
     }
 
@@ -164,7 +179,17 @@ def predict(
             display_severity = "Low"
 
         # Calculate a reasonable duration range
+        import json
         duration_rmse = 2.1
+        model_version_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'outputs', 'model_version.json')
+        try:
+            if os.path.exists(model_version_path):
+                with open(model_version_path, 'r') as f:
+                    mv = json.load(f)
+                    duration_rmse = mv.get("duration_rmse", 2.1)
+        except Exception:
+            pass
+            
         min_dur = max(0, int(duration_mins - duration_rmse))
         max_dur = int(duration_mins + duration_rmse)
         duration_range = f"{min_dur} - {max_dur} mins"
@@ -240,6 +265,7 @@ class FeedbackPayload(BaseModel):
 def submit_feedback(payload: FeedbackPayload):
     try:
         feedback_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'feedback', 'feedback_log.csv')
+        processed_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'processed', 'cleaned_data.csv')
         
         # Calculate some missing fields needed for training based on current time
         # In a real system, you'd extract these from actual start_datetime
@@ -253,23 +279,51 @@ def submit_feedback(payload: FeedbackPayload):
         # Determine if we should trigger retraining
         # First check how many lines currently exist
         line_count = 0
+        write_header = False
         if os.path.exists(feedback_file):
             with open(feedback_file, 'r') as f:
                 line_count = sum(1 for line in f) - 1 # subtract header
-                
-        # Append to CSV
-        with open(feedback_file, 'a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                payload.incidentId, "feedback_event", payload.latitude, payload.longitude,
-                None, None, "Unknown", "Unknown", payload.event_cause, int(payload.actualClosure),
-                dt.isoformat() + "Z", None, "resolved", True, dt.isoformat() + "Z", None, None,
-                payload.notes, payload.veh_type, None, payload.corridor, payload.actualSeverity,
-                None, None, None, dt.isoformat() + "Z", None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, payload.zone,
-                payload.junction, start_hour, start_weekday, start_month, start_day_of_year,
-                payload.actualDurationMins, 0, 0, 0, 0, 0, 0, is_peak_hour, 0
-            ])
+        else:
+            write_header = True
+            
+        # Get columns from processed file to align schema
+        if os.path.exists(processed_file):
+            cols = pd.read_csv(processed_file, nrows=0).columns.tolist()
+        else:
+            cols = ['id', 'event_cause', 'priority', 'veh_type', 'corridor', 'zone', 'junction', 
+                    'latitude', 'longitude', 'requires_road_closure', 'start_datetime', 
+                    'description', 'duration_mins', 'start_hour', 'start_weekday', 
+                    'start_month', 'start_day_of_year', 'is_peak_hour']
+            
+        row_dict = {col: None for col in cols}
+        row_dict.update({
+            'id': payload.incidentId,
+            'event_type': 'feedback_event',
+            'latitude': payload.latitude,
+            'longitude': payload.longitude,
+            'event_cause': payload.event_cause,
+            'requires_road_closure': int(payload.actualClosure),
+            'start_datetime': dt.isoformat() + "Z",
+            'status': 'resolved',
+            'authenticated': True,
+            'modified_datetime': dt.isoformat() + "Z",
+            'description': payload.notes,
+            'veh_type': payload.veh_type,
+            'corridor': payload.corridor,
+            'priority': payload.actualSeverity,
+            'created_date': dt.isoformat() + "Z",
+            'zone': payload.zone,
+            'junction': payload.junction,
+            'start_hour': start_hour,
+            'start_weekday': start_weekday,
+            'start_month': start_month,
+            'start_day_of_year': start_day_of_year,
+            'duration_mins': payload.actualDurationMins,
+            'is_peak_hour': is_peak_hour
+        })
+        
+        df_row = pd.DataFrame([row_dict], columns=cols)
+        df_row.to_csv(feedback_file, mode='a', header=write_header, index=False)
             
         line_count += 1
         
