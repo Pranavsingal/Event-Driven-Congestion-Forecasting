@@ -8,9 +8,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const start_time = Date.now();
 
-const { initialize } = require('./config/database');
-initialize();
-
 // Connect to MongoDB if MONGODB_URI is provided
 connectDB();
 
