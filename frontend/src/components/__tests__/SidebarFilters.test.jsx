@@ -24,7 +24,7 @@ describe('SidebarFilters Component', () => {
     render(<Wrapper initialFilters={mockFilters} />);
     
     expect(screen.getByText('Forecasting Engine')).toBeInTheDocument();
-    expect(screen.getByText('Start Hour')).toBeInTheDocument();
+    expect(screen.getByText('Start Time')).toBeInTheDocument();
     
     // Check if the mode toggle is set to Reactive (Live)
     expect(screen.getByText('Reactive (Live)')).toHaveStyle('background: rgb(255, 255, 255)');
