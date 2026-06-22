@@ -368,7 +368,7 @@ def get_map_coordinates(filters: dict) -> dict:
     routes_data = []
     try:
         from planning.diversion import get_diversions
-        diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause, barricades=barricades)
+        diversions = get_diversions(junction, hour=int(filters.get("hour", 12)), cause=cause, barricades=barricades, corridor=corridor)
         
         for idx, div in enumerate(diversions):
             geom = div.get("route_geometry", [])

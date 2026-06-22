@@ -23,13 +23,47 @@ def score_route(alt_route: dict, is_peak: bool, cause: str) -> float:
     score = (distance_penalty + congestion_history + peak_penalty) * cause_multiplier
     return round(score, 1)
 
-def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion", barricades: list = None) -> list:
+CORRIDOR_CENTERS = {
+    "hosur road": [12.9145, 77.6250],
+    "tumkur road": [13.0490, 77.5250],
+    "orr east 1": [12.9280, 77.6300],
+    "orr east 2": [12.9380, 77.6750],
+    "orr west 1": [12.9565, 77.5175],
+    "orr north 1": [13.0210, 77.6480],
+    "orr north 2": [13.0290, 77.5765],
+    "bannerghata road": [12.9140, 77.5975],
+    "old airport road": [12.9650, 77.6335],
+    "old madras road": [12.9900, 77.6565],
+    "bellary road 1": [13.0165, 77.5945],
+    "bellary road 2": [13.0500, 77.5925],
+    "cbd 1": [12.9705, 77.5780],
+    "cbd 2": [12.9665, 77.6075],
+    "magadi road": [12.9650, 77.5300],
+    "mysore road": [12.9320, 77.5025],
+    "varthur road": [12.9700, 77.7260],
+    "hennur main road": [13.0350, 77.6350],
+    "airport new south road": [13.0875, 77.5790],
+    "irr(thanisandra road)": [13.0600, 77.6300],
+    "west of chord road": [13.0000, 77.5500],
+    "non-corridor": [12.9758, 77.5998]
+}
+
+def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion", barricades: list = None, corridor: str = None) -> list:
     """
     For any given junction, scores and ranks the top candidate diversion routes.
     Returns a list of alternate routes with distance, scored ETA, and justification.
     """
     is_peak = (7 <= hour <= 10) or (17 <= hour <= 20)
     
+    # Slide Unknown waypoints to center around corridor if possible
+    d_lat, d_lng = 0.0, 0.0
+    if (not junction_name or junction_name == "Unknown") and corridor:
+        corr_key = str(corridor).lower().strip()
+        if corr_key in CORRIDOR_CENTERS:
+            c_coords = CORRIDOR_CENTERS[corr_key]
+            d_lat = c_coords[0] - 12.9716
+            d_lng = c_coords[1] - 77.5946
+
     # Lookup junction
     junction = JUNCTION_DATABASE.get(junction_name)
     if not junction:
@@ -61,6 +95,8 @@ def get_diversions(junction_name: str, hour: int = 12, cause: str = "congestion"
         dist_km = alt["distance_km"]
         
         route_geometry = alt.get("waypoints", [])
+        if d_lat != 0.0 or d_lng != 0.0:
+            route_geometry = [[pt[0] + d_lat, pt[1] + d_lng] for pt in route_geometry]
         
         if get_road_route and "waypoints" in alt and len(alt["waypoints"]) >= 2:
             pts = list(alt["waypoints"])

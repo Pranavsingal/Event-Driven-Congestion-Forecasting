@@ -248,7 +248,7 @@ def predict(
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             },
             "plan": plan,
-            "diversions": get_diversions(junction, hour, cause),
+            "diversions": get_diversions(junction, hour, cause, corridor=corridor),
             "historicalInsights": get_historical_insights(zone, cause),
             "historicalContext": plan_result.get("historical_context", ""),
             "mapData": get_map_coordinates(filters)
@@ -481,7 +481,7 @@ def get_pdf(
     try:
         plan_result = generate_plan(raw_input)
         plan = plan_result.get("plan", {})
-        diversions = get_diversions(junction, hour, cause)
+        diversions = get_diversions(junction, hour, cause, corridor=corridor)
         
         # Create temporary PDF file
         temp_dir = tempfile.gettempdir()
