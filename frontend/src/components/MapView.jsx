@@ -68,6 +68,24 @@ const LOCAL_JUNCTIONS = {
   "richmond circle": [12.9602, 77.5982, "Richmond Circle"]
 };
 
+const ensureBengaluruBounds = (lat, lng) => {
+  const minLat = 12.85;
+  const maxLat = 13.10;
+  const minLng = 77.45;
+  const maxLng = 77.78;
+  
+  if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) {
+    return { lat, lng, simulated: false };
+  }
+  
+  // Outside Bengaluru - return a simulated point near Trinity Circle
+  return {
+    lat: 12.9731 + (Math.random() - 0.5) * 0.02,
+    lng: 77.6174 + (Math.random() - 0.5) * 0.02,
+    simulated: true
+  };
+};
+
 export default function MapView({ sectors, incidents, filters, mapData, onLocationUpdate }) {
   const [hoveredSector, setHoveredSector] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -191,16 +209,19 @@ export default function MapView({ sectors, incidents, filters, mapData, onLocati
       });
 
       map.on('locationfound', (e) => {
-        setLiveLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+        const coords = ensureBengaluruBounds(e.latlng.lat, e.latlng.lng);
+        setLiveLocation({ lat: coords.lat, lng: coords.lng });
         setIsLocating(false);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([coords.lat, coords.lng], 15);
+        }
         if (updateDashboardLocationRef.current) {
-          updateDashboardLocationRef.current(e.latlng.lat, e.latlng.lng);
+          updateDashboardLocationRef.current(coords.lat, coords.lng);
         }
       });
 
       map.on('locationerror', (err) => {
-        console.error("Leaflet locate failed:", err);
-        alert("Geolocation failed. Defaulting to simulated live location (Bengaluru).");
+        console.warn("Leaflet locate failed:", err);
         const mockLat = 12.9716 + (Math.random() - 0.5) * 0.02;
         const mockLng = 77.5946 + (Math.random() - 0.5) * 0.02;
         setLiveLocation({ lat: mockLat, lng: mockLng });
